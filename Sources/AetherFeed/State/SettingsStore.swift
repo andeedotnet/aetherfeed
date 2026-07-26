@@ -79,6 +79,11 @@ final class SettingsStore {
     var notifySummaryReady: Bool {
         didSet { Self.defaults.set(notifySummaryReady, forKey: "notifySummaryReady") }
     }
+    /// Query GitHub releases once at launch; the update itself always
+    /// stays a manual click.
+    var checkUpdatesAtLaunch: Bool {
+        didSet { Self.defaults.set(checkUpdatesAtLaunch, forKey: "checkUpdatesAtLaunch") }
+    }
     /// Detail view preference: feed text instead of the article's web page.
     var showFeedTextInDetail: Bool {
         didSet { Self.defaults.set(showFeedTextInDetail, forKey: "showFeedTextInDetail") }
@@ -109,6 +114,7 @@ final class SettingsStore {
         retentionDays = defaults.object(forKey: "retentionDays") as? Int ?? 0
         notifyNewArticles = defaults.bool(forKey: "notifyNewArticles")
         notifySummaryReady = defaults.bool(forKey: "notifySummaryReady")
+        checkUpdatesAtLaunch = defaults.object(forKey: "checkUpdatesAtLaunch") as? Bool ?? true
         showFeedTextInDetail = defaults.bool(forKey: "showFeedTextInDetail")
         adBlockEnabled = defaults.bool(forKey: "adBlockEnabled")
         blocklistURLs = defaults.stringArray(forKey: "blocklistURLs") ?? []

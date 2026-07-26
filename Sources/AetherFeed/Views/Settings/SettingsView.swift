@@ -64,6 +64,7 @@ private struct GeneralSettingsView: View {
                         Task { await NotificationService.requestAuthorization() }
                     }
                 }
+            Toggle(l10n[.settingsCheckUpdates], isOn: $settings.checkUpdatesAtLaunch)
         }
         .formStyle(.grouped)
     }

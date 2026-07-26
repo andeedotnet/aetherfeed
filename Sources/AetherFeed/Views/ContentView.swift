@@ -93,6 +93,7 @@ struct ContentView: View {
                 scheduler.start()
                 self.scheduler = scheduler
                 await NotificationService.setUpAtLaunch()
+                await UpdateChecker.shared.checkAtLaunch()
                 await LLMPipeline.shared.startAtLaunch()
                 await AdBlockManager.shared.startAtLaunch()
             }
@@ -131,6 +132,24 @@ struct ContentView: View {
             }
             .keyboardShortcut("r", modifiers: .command)
             .disabled(store.isRefreshing || !store.sidebar.hasFeeds)
+        }
+        ToolbarItem {
+            // Subtle update indicator: only visible when GitHub has a newer
+            // release; the update runs exactly when the user clicks it.
+            if let version = UpdateChecker.shared.availableVersion {
+                Button {
+                    Task { await UpdateChecker.shared.performUpdate() }
+                } label: {
+                    if UpdateChecker.shared.isUpdating {
+                        ProgressView().controlSize(.small)
+                    } else {
+                        Image(systemName: "arrow.down.circle")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .disabled(UpdateChecker.shared.isUpdating)
+                .help(l10n[.updateAvailableHelp, version])
+            }
         }
         ToolbarItem {
             // Live count of articles still awaiting an AI summary; hidden at zero.

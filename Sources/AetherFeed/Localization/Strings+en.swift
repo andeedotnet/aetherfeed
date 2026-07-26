@@ -124,6 +124,8 @@ extension L10nKey {
 
         .settingsNotifySummaries: "Notify when the digest is ready",
         .notifyDigestReadyBody: "Your digest is ready",
+        .settingsCheckUpdates: "Check for updates at launch",
+        .updateAvailableHelp: "Version %@ available – click to update",
 
         .aiFailedTitle: "AI summary failed",
         .aiFailedUnknown: "Unknown error",

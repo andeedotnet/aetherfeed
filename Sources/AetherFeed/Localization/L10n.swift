@@ -128,6 +128,8 @@ enum L10nKey: String {
 
     case settingsNotifySummaries
     case notifyDigestReadyBody
+    case settingsCheckUpdates
+    case updateAvailableHelp
 
     case aiFailedTitle
     case aiFailedUnknown

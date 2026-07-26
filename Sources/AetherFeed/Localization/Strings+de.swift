@@ -125,6 +125,8 @@ extension L10nKey {
 
         .settingsNotifySummaries: "Benachrichtigen, wenn der Digest bereitsteht",
         .notifyDigestReadyBody: "Dein Digest ist bereit",
+        .settingsCheckUpdates: "Beim Start auf Updates prüfen",
+        .updateAvailableHelp: "Version %@ verfügbar – klicken zum Aktualisieren",
 
         .aiFailedTitle: "KI-Zusammenfassung fehlgeschlagen",
         .aiFailedUnknown: "Unbekannter Fehler",
