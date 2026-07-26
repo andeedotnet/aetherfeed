@@ -137,9 +137,22 @@ struct DigestView: View {
                             Spacer()
                             speechButton(id: "overview", text: display.overview)
                         }
-                        Text(display.overview)
-                            .font(.body)
-                            .textSelection(.enabled)
+                        // One block per paragraph (the LLM delivers one per
+                        // category, joined with \n\n) across the full card
+                        // width — paragraph gaps carry the readability.
+                        VStack(alignment: .leading, spacing: 8) {
+                            ForEach(
+                                Array(
+                                    display.overview
+                                        .components(separatedBy: "\n\n").enumerated()),
+                                id: \.offset
+                            ) { _, paragraph in
+                                Text(paragraph)
+                                    .font(.body)
+                                    .lineSpacing(3)
+                                    .textSelection(.enabled)
+                            }
+                        }
                     }
                     .padding(14)
                     .frame(maxWidth: .infinity, alignment: .leading)

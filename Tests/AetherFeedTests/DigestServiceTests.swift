@@ -55,8 +55,8 @@ private final class MockLLMClient: LLMClient, @unchecked Sendable {
                 ? #"{"topics":[{"headline":"**Überschrift:** X\n**Zusammenfassung:** Y","summary":"Z }, {","articleIds":[\#(id)]}]}"#
                 : #"{"topics":[{"headline":"H","summary":"S","articleIds":[\#(id)]}]}"#
         } else {
-            lock.withLock { _overviewUsers.append(user) }
-            json = #"{"overview":"O"}"#
+            lock.withLock { _overviewUsers.append(system + "\n" + user) }
+            json = #"{"paragraph":"P"}"#
         }
         return try JSONDecoder().decode(T.self, from: Data(json.utf8))
     }
@@ -178,12 +178,17 @@ private final class MockLLMClient: LLMClient, @unchecked Sendable {
         let client = MockLLMClient(concurrent: true)
         await DigestService(repository: repository, clientProvider: { client }).generate()
 
-        let user = try #require(client.overviewUsers.first)
-        let alpha = try #require(user.range(of: "# Alpha"))
-        let beta = try #require(user.range(of: "# Beta"))
-        #expect(alpha.lowerBound < beta.lowerBound)
+        // One overview call per category, in sidebar order.
+        let prompts = client.overviewUsers
+        #expect(prompts.count == 2)
+        #expect(prompts[0].contains("Alpha"))
+        #expect(prompts[1].contains("Beta"))
         // Topic bullet points, not raw article snippets.
-        #expect(user.contains("- H — S"))
-        #expect(!user.contains("Inhalt"))
+        #expect(prompts[0].contains("- H — S"))
+        #expect(!prompts.joined().contains("Inhalt"))
+
+        // Per-category paragraphs land in the payload joined by blank lines.
+        let payload = try await repository.loadDigestPayload()
+        #expect(payload?.overview == "P\n\nP")
     }
 }

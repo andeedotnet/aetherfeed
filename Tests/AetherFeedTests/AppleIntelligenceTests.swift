@@ -27,7 +27,7 @@ import Testing
         let topics = try encodedSchema(CategoryTopicsResult.schema)
         #expect(topics.contains("articleIds"))
         let overview = try encodedSchema(OverviewResult.schema)
-        #expect(overview.contains("overview"))
+        #expect(overview.contains("paragraph"))
     }
 
     @Test @available(macOS 26.0, *) func translatesEnumAndOptionalProperties() throws {

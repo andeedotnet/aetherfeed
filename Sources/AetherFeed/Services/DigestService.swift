@@ -263,47 +263,57 @@ actor DigestService {
         }
         guard !recentTopics.isEmpty else { return placeholder }
 
-        let system = """
-            You are a news-briefing assistant. You get today's news topics \
-            as short bullet points, grouped by category. Write a news \
-            overview of 6-8 sentences in flowing prose: go through the \
-            categories in the given order and give each one roughly equal \
-            weight. Summarize in your own words; never copy the bullet \
-            points verbatim. Your first sentence must immediately report a \
-            concrete development — filler openings such as "In the last 24 \
-            hours there were several developments" are forbidden. \
-            \(Self.languageInstruction())
-            """
-        // Guardrail rejections (Apple Intelligence) are deterministic for
-        // identical input — retrying verbatim is useless. The fallback
-        // attempt sends the headlines only. A second refusal keeps the
-        // placeholder; the sections still count.
-        let variants = [true, false].map { withSummaries in
-            recentTopics.map { entry in
-                "# \(entry.category)\n"
-                    + entry.topics.map {
-                        withSummaries ? "- \($0.headline) — \($0.summary)" : "- \($0.headline)"
-                    }.joined(separator: "\n")
-            }.joined(separator: "\n\n")
-        }
-        for (attempt, user) in variants.enumerated() {
-            do {
-                let result: OverviewResult = try await client.structured(
-                    system: system,
-                    user: user,
-                    schema: OverviewResult.schema,
-                    numCtx: 16384, timeout: 600)
-                return result.overview
-            } catch let error as LLMError where !error.pausesPipeline {
-                log.error(
-                    "overview attempt \(attempt + 1) skipped: \(error.errorDescription ?? "\(error)")"
-                )
-            } catch {
-                log.error("overview failed: \(error)")
-                break
+        // One small call per category: the code — not the model — now
+        // guarantees that every category appears exactly once and in
+        // sidebar order (a single big call reliably lost categories with
+        // the on-device model). A guardrail rejection only costs that one
+        // category's paragraph.
+        var paragraphs: [String] = []
+        for entry in recentTopics {
+            let system = """
+                You are a news-briefing assistant. You get today's news \
+                topics of the category "\(entry.category)" as short bullet \
+                points. Write one concise paragraph of 2-4 sentences in \
+                flowing prose. Summarize in your own words; never copy the \
+                bullet points verbatim. The first sentence must immediately \
+                report a concrete development — filler openings such as \
+                "In the last 24 hours there were several developments" are \
+                forbidden. \(Self.languageInstruction())
+                """
+            // Guardrail rejections (Apple Intelligence) are deterministic
+            // for identical input — retrying verbatim is useless. The
+            // fallback attempt sends the headlines only.
+            let variants = [true, false].map { withSummaries in
+                entry.topics.map {
+                    withSummaries ? "- \($0.headline) — \($0.summary)" : "- \($0.headline)"
+                }.joined(separator: "\n")
+            }
+            for (attempt, user) in variants.enumerated() {
+                do {
+                    let result: OverviewResult = try await client.structured(
+                        system: system,
+                        user: user,
+                        schema: OverviewResult.schema,
+                        numCtx: 16384, timeout: 600)
+                    let text = result.paragraph
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard !text.isEmpty else { continue }
+                    paragraphs.append(text)
+                    break
+                } catch let error as LLMError where !error.pausesPipeline {
+                    log.error(
+                        "overview \(entry.category, privacy: .public) attempt \(attempt + 1) skipped: \(error.errorDescription ?? "\(error)")"
+                    )
+                } catch {
+                    // Pausing/unknown error: give up on this category's
+                    // paragraph; the joined rest still forms an overview.
+                    log.error(
+                        "overview \(entry.category, privacy: .public) failed: \(error)")
+                    break
+                }
             }
         }
-        return placeholder
+        return paragraphs.isEmpty ? placeholder : paragraphs.joined(separator: "\n\n")
     }
 
     private static func articleList(_ articles: [Repository.DigestInput]) -> String {

@@ -168,13 +168,16 @@ struct CategoryTopicsResult: Decodable, Sendable {
     ]
 }
 
-/// Overall overview across all categories (final digest call).
+/// One overview paragraph for a single category. The overview is built
+/// from one small call per category — code guarantees that every category
+/// appears exactly once and in order; a single big call reliably lost
+/// categories with the on-device model.
 struct OverviewResult: Decodable, Sendable {
-    var overview: String
+    var paragraph: String
 
     static let schema: JSONValue = [
         "type": "object",
-        "properties": ["overview": ["type": "string"]],
-        "required": ["overview"],
+        "properties": ["paragraph": ["type": "string"]],
+        "required": ["paragraph"],
     ]
 }
