@@ -4,6 +4,9 @@ import Observation
 enum AppLanguage: String, CaseIterable, Identifiable, Sendable {
     case de
     case en
+    case it
+    case fr
+    case es
 
     var id: String { rawValue }
 
@@ -12,17 +15,23 @@ enum AppLanguage: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .de: "Deutsch"
         case .en: "English"
+        case .it: "Italiano"
+        case .fr: "Français"
+        case .es: "Español"
         }
     }
 
     static var systemDefault: AppLanguage {
-        Locale.current.language.languageCode?.identifier == "de" ? .de : .en
+        AppLanguage(rawValue: Locale.current.language.languageCode?.identifier ?? "") ?? .en
     }
 }
 
 enum SummaryLanguage: String, CaseIterable, Identifiable, Sendable {
     case de
     case en
+    case it
+    case fr
+    case es
     /// Summary in the original language of the respective article.
     case original
 

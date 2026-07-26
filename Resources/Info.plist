@@ -8,6 +8,9 @@
 	<array>
 		<string>de</string>
 		<string>en</string>
+		<string>it</string>
+		<string>fr</string>
+		<string>es</string>
 	</array>
 	<key>CFBundleExecutable</key>
 	<string>AetherFeed</string>

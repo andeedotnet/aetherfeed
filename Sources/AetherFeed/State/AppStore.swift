@@ -36,8 +36,10 @@ struct SidebarSnapshot: Equatable, Sendable {
         var nameEn: String?
         var count: Int
 
+        // Tags are stored bilingually (de/en) — every non-German UI
+        // language shows the English label.
         func display(_ language: AppLanguage) -> String {
-            language == .en ? (nameEn.flatMap { $0.isEmpty ? nil : $0 } ?? name) : name
+            language == .de ? name : (nameEn.flatMap { $0.isEmpty ? nil : $0 } ?? name)
         }
     }
 

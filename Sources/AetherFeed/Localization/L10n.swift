@@ -4,7 +4,7 @@ import Observation
 /// Every visible UI string gets a key here; translations live in
 /// Strings+de.swift / Strings+en.swift. No `.xcstrings`, because the UI language
 /// must be switchable at runtime and the project builds without Xcode.
-enum L10nKey: String {
+enum L10nKey: String, CaseIterable {
     case welcomeTitle
     case welcomeSubtitle
 
@@ -14,6 +14,9 @@ enum L10nKey: String {
     case summaryLanguage
     case languageGerman
     case languageEnglish
+    case languageItalian
+    case languageFrench
+    case languageSpanish
     case summaryLanguageOriginal
     case refreshInterval
     case refreshOff
@@ -149,13 +152,24 @@ enum L10nKey: String {
 }
 
 extension L10nKey {
+    /// Table for a UI language; missing keys fall back to English at the
+    /// call sites.
+    static func table(for language: AppLanguage) -> [L10nKey: String] {
+        switch language {
+        case .de: german
+        case .en: english
+        case .it: italian
+        case .fr: french
+        case .es: spanish
+        }
+    }
+
     /// Localization outside the MainActor (e.g. LocalizedError in actors):
     /// reads the UI language directly from UserDefaults instead of via the Localizer.
     static func localizedOffMain(_ key: L10nKey) -> String {
         let language = UserDefaults.standard.string(forKey: "uiLanguage")
             .flatMap(AppLanguage.init(rawValue:)) ?? .systemDefault
-        let table = language == .de ? german : english
-        return table[key] ?? english[key] ?? key.rawValue
+        return table(for: language)[key] ?? english[key] ?? key.rawValue
     }
 }
 
@@ -179,9 +193,6 @@ final class Localizer {
     }
 
     private var table: [L10nKey: String] {
-        switch language {
-        case .de: L10nKey.german
-        case .en: L10nKey.english
-        }
+        L10nKey.table(for: language)
     }
 }

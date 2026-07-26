@@ -37,6 +37,9 @@ private struct GeneralSettingsView: View {
             Picker(l10n[.summaryLanguage], selection: $settings.summaryLanguage) {
                 Text(l10n[.languageGerman]).tag(SummaryLanguage.de)
                 Text(l10n[.languageEnglish]).tag(SummaryLanguage.en)
+                Text(l10n[.languageItalian]).tag(SummaryLanguage.it)
+                Text(l10n[.languageFrench]).tag(SummaryLanguage.fr)
+                Text(l10n[.languageSpanish]).tag(SummaryLanguage.es)
                 Text(l10n[.summaryLanguageOriginal]).tag(SummaryLanguage.original)
             }
             Picker(l10n[.refreshInterval], selection: $settings.refreshIntervalMinutes) {

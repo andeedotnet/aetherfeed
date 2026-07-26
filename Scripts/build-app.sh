@@ -19,7 +19,9 @@ cp Resources/Info.plist "$APP/Contents/Info.plist"
 printf 'APPL????' > "$APP/Contents/PkgInfo"
 # Empty .lproj folders: macOS detects the supported languages from these, so
 # system menus (File/Ablage …) follow the language set via AppleLanguages.
-mkdir -p "$APP/Contents/Resources/de.lproj" "$APP/Contents/Resources/en.lproj"
+for lang in de en it fr es; do
+  mkdir -p "$APP/Contents/Resources/$lang.lproj"
+done
 if [ -f Resources/AppIcon.icns ]; then
   cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
   /usr/libexec/PlistBuddy -c "Add :CFBundleIconFile string AppIcon" "$APP/Contents/Info.plist" 2>/dev/null || true

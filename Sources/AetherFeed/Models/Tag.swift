@@ -31,11 +31,13 @@ struct GeneratedTag: Sendable {
 }
 
 /// A tag prepared for display; the UI picks the label per current language.
+/// Tags are stored bilingually (de/en) — every non-German UI language shows
+/// the English label.
 struct LocalizedTag: Equatable, Hashable, Sendable {
     var name: String
     var nameEn: String?
 
     func display(_ language: AppLanguage) -> String {
-        language == .en ? (nameEn.flatMap { $0.isEmpty ? nil : $0 } ?? name) : name
+        language == .de ? name : (nameEn.flatMap { $0.isEmpty ? nil : $0 } ?? name)
     }
 }

@@ -315,6 +315,9 @@ actor DigestService {
         return switch SummaryLanguage(rawValue: raw) ?? .de {
         case .de: "Write everything in German."
         case .en: "Write everything in English."
+        case .it: "Write everything in Italian."
+        case .fr: "Write everything in French."
+        case .es: "Write everything in Spanish."
         case .original: "Write in the dominant language of the articles."
         }
     }

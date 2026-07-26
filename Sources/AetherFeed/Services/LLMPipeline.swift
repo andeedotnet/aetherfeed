@@ -152,6 +152,9 @@ actor LLMPipeline {
         return switch SummaryLanguage(rawValue: raw) ?? .de {
         case .de: "Write the summary in German."
         case .en: "Write the summary in English."
+        case .it: "Write the summary in Italian."
+        case .fr: "Write the summary in French."
+        case .es: "Write the summary in Spanish."
         case .original: "Write the summary in the article's original language."
         }
     }
