@@ -1,0 +1,27 @@
+# Build artifacts (SPM debug/release + Scripts/build-app.sh output)
+.build/
+build/
+DerivedData/
+*.profraw
+
+# Xcode leftovers, in case the package is ever opened in Xcode
+.swiftpm/
+xcuserdata/
+*.xcodeproj
+
+# VSCode
+.vscode
+
+# macOS
+.DS_Store
+
+# Local databases from bare-binary dev runs
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+
+# Claude Code: local (per-machine) settings stay untracked;
+# a shared .claude/settings.json would be committed.
+.claude
+CLAUDE.md
+TODO.md
