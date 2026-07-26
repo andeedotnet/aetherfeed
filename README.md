@@ -14,7 +14,9 @@ Three interchangeable AI backends:
 ## Features
 
 - Live-updating article list backed by SQLite (GRDB) with full-text search
-- AI summaries and bilingual topic tags for every article
+- AI summaries and bilingual topic tags for every article — summaries in
+  German, English, Italian, French, Spanish, or the article's original
+  language
 - Daily briefing home page grouped by your feed categories — regenerated
   incrementally (only categories with new articles), with an overview that
   follows your category order
@@ -24,7 +26,9 @@ Three interchangeable AI backends:
 - Export articles as Markdown (reader-style full-page extraction) or PDF
 - OPML import/export, retention limits, notifications for new articles and
   the finished briefing
-- Fully bilingual UI (English/German, switchable at runtime)
+- Built-in update check against GitHub releases with one-click self-update
+- Localized UI in five languages (English, German, Italian, French,
+  Spanish), switchable at runtime
 
 ## Build & Run
 
@@ -43,8 +47,8 @@ For development: `swift build` and run `.build/debug/AetherFeed`, or
 
 Settings (⌘,): AI provider (Apple Intelligence / Ollama / OpenAI-compatible)
 with connection test and model picker, UI and summary language, feed refresh
-(manually, on launch, or every 5–120 minutes), retention, notifications, and
-ad-block lists.
+(manually, on launch, or every 5–120 minutes), retention, notifications,
+update check, and ad-block lists.
 
 ## License
 
