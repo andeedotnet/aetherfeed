@@ -134,24 +134,6 @@ struct ContentView: View {
             .disabled(store.isRefreshing || !store.sidebar.hasFeeds)
         }
         ToolbarItem {
-            // Subtle update indicator: only visible when GitHub has a newer
-            // release; the update runs exactly when the user clicks it.
-            if let version = UpdateChecker.shared.availableVersion {
-                Button {
-                    Task { await UpdateChecker.shared.performUpdate() }
-                } label: {
-                    if UpdateChecker.shared.isUpdating {
-                        ProgressView().controlSize(.small)
-                    } else {
-                        Image(systemName: "arrow.down.circle")
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .disabled(UpdateChecker.shared.isUpdating)
-                .help(l10n[.updateAvailableHelp, version])
-            }
-        }
-        ToolbarItem {
             // Live count of articles still awaiting an AI summary; hidden at zero.
             if store.sidebar.pendingSummaryCount > 0 {
                 HStack(spacing: 5) {
@@ -193,6 +175,25 @@ struct ContentView: View {
                     systemImage: settings.adBlockEnabled ? "shield" : "shield.slash")
             }
             .help(l10n[settings.adBlockEnabled ? .adBlockTurnOff : .adBlockTurnOn])
+        }
+        ToolbarItem {
+            // Update indicator, rightmost slot: only visible when GitHub has
+            // a newer release; the update runs exactly when the user clicks.
+            // Blue instead of the toolbar's monochrome so it stands out.
+            if let version = UpdateChecker.shared.availableVersion {
+                Button {
+                    Task { await UpdateChecker.shared.performUpdate() }
+                } label: {
+                    if UpdateChecker.shared.isUpdating {
+                        ProgressView().controlSize(.small)
+                    } else {
+                        Image(systemName: "arrow.down.circle")
+                            .foregroundStyle(.blue)
+                    }
+                }
+                .disabled(UpdateChecker.shared.isUpdating)
+                .help(l10n[.updateAvailableHelp, version])
+            }
         }
     }
 }
