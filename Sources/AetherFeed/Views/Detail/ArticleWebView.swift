@@ -64,9 +64,14 @@ struct ArticleWebView: NSViewRepresentable {
 
         switch content {
         case .remote(let url):
+            context.coordinator.rendersFeedHTML = false
             isLoading = true
             webView.load(URLRequest(url: url))
         case .html(let html, let baseURL):
+            // Feed HTML is unsanitized third-party markup rendered under the
+            // linked site's origin — the coordinator turns JavaScript off
+            // for it (see decidePolicyFor).
+            context.coordinator.rendersFeedHTML = true
             isLoading = false
             webView.loadHTMLString(Self.page(for: html), baseURL: baseURL)
         }
@@ -94,6 +99,15 @@ struct ArticleWebView: NSViewRepresentable {
         var ruleListsVersion = -1
         var isLoading: Binding<Bool>
         var onFailure: () -> Void
+        /// Currently showing raw feed markup rather than a live web page.
+        var rendersFeedHTML = false
+
+        /// Schemes the view may navigate to itself. Anything else (file://,
+        /// a third-party app's scheme, …) is refused — feed content and
+        /// remote pages both control these URLs.
+        private static let renderableSchemes: Set<String> = [
+            "http", "https", "about", "data", "blob",
+        ]
 
         init(isLoading: Binding<Bool>, onFailure: @escaping () -> Void) {
             self.isLoading = isLoading
@@ -103,15 +117,28 @@ struct ArticleWebView: NSViewRepresentable {
         func webView(
             _ webView: WKWebView,
             decidePolicyFor navigationAction: WKNavigationAction,
-            decisionHandler: @escaping @MainActor (WKNavigationActionPolicy) -> Void
+            preferences: WKWebpagePreferences,
+            decisionHandler: @escaping @MainActor (WKNavigationActionPolicy, WKWebpagePreferences)
+                -> Void
         ) {
-            if navigationAction.navigationType == .linkActivated,
-               let url = navigationAction.request.url {
-                NSWorkspace.shared.open(url)
-                decisionHandler(.cancel)
-            } else {
-                decisionHandler(.allow)
+            // Feed HTML is unsanitized markup from an untrusted publisher,
+            // rendered with the article's own origin — script in it would
+            // run against that site. Live pages keep JavaScript.
+            preferences.allowsContentJavaScript = !rendersFeedHTML
+
+            let url = navigationAction.request.url
+            if navigationAction.navigationType == .linkActivated, let url {
+                // Only web links reach the browser; everything else is dropped.
+                WorkspaceOpener.open(url)
+                decisionHandler(.cancel, preferences)
+                return
             }
+            let scheme = url?.scheme?.lowercased() ?? "about"
+            guard Self.renderableSchemes.contains(scheme) else {
+                decisionHandler(.cancel, preferences)
+                return
+            }
+            decisionHandler(.allow, preferences)
         }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {

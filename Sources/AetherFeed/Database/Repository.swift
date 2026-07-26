@@ -479,13 +479,19 @@ struct Repository: Sendable {
         }
     }
 
+    /// The digest prompt lists articles as `[id] title — snippet`, one per
+    /// line, so newlines have to go: a feed title containing one could
+    /// otherwise forge additional `[id] …` entries in that list.
     private static func digestInput(from row: Row) -> DigestInput {
         let summary: String? = row["summary"]
         let contentText: String? = row["contentText"]
         let snippet = (summary ?? contentText ?? "")
             .replacingOccurrences(of: "\n", with: " ")
             .prefix(300)
-        return DigestInput(id: row["id"], title: row["title"], snippet: String(snippet))
+        let title = (row["title"] as String? ?? "")
+            .replacingOccurrences(of: "\n", with: " ")
+            .replacingOccurrences(of: "\r", with: " ")
+        return DigestInput(id: row["id"], title: title, snippet: String(snippet))
     }
 
     /// True when no digest exists (fresh app start clears it) or articles

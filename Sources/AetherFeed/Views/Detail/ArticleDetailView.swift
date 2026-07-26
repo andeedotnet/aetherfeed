@@ -156,7 +156,7 @@ struct ArticleDetailView: View {
                 ToolbarItem {
                     Button {
                         if let url = article.url.flatMap(URL.init(string:)) {
-                            NSWorkspace.shared.open(url)
+                            WorkspaceOpener.open(url)
                         }
                     } label: {
                         Label(l10n[.openInBrowser], systemImage: "safari")

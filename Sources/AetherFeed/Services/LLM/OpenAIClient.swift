@@ -12,7 +12,7 @@ struct OpenAIConfig: Sendable {
         let defaults = UserDefaults.standard
         return OpenAIConfig(
             baseURL: defaults.string(forKey: "openaiBaseURL") ?? "https://api.openai.com/v1",
-            apiKey: defaults.string(forKey: "openaiAPIKey") ?? "",
+            apiKey: KeychainStore.string(for: KeychainStore.openaiAPIKeyAccount) ?? "",
             model: defaults.string(forKey: "openaiModel") ?? ""
         )
     }

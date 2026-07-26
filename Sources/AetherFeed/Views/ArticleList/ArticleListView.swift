@@ -45,7 +45,7 @@ struct ArticleListView: View {
         }
         if let url = row.url.flatMap(URL.init(string:)) {
             Button {
-                NSWorkspace.shared.open(url)
+                WorkspaceOpener.open(url)
             } label: {
                 Label(l10n[.openInBrowser], systemImage: "safari")
             }

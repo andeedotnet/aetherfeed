@@ -36,9 +36,15 @@ final class AdBlockManager {
     private static let staleInterval: TimeInterval = 7 * 24 * 3600
     private static let chunkSize = 25_000
 
+    /// Blocklists are read into memory before compiling; hagezi-sized lists
+    /// are a few MB, so this only stops runaway or hostile responses.
+    private static let maxListBytes = 32 * 1024 * 1024
+
     private let session: URLSession = {
         let config = URLSessionConfiguration.ephemeral
+        // Request timeout is idle-only — bound the whole transfer as well.
         config.timeoutIntervalForRequest = 60
+        config.timeoutIntervalForResource = 600
         config.httpAdditionalHeaders = ["User-Agent": SafariUserAgent.value]
         return URLSession(configuration: config)
     }()
@@ -131,7 +137,7 @@ final class AdBlockManager {
     }
 
     private func process(url urlString: String, force: Bool) async throws -> Compiled {
-        guard let url = URL(string: urlString), url.scheme?.hasPrefix("http") == true else {
+        guard let url = URL(string: urlString), FeedFetcher.isWebURL(url) else {
             throw AdBlockError.invalidURL
         }
 
@@ -142,6 +148,7 @@ final class AdBlockManager {
 
         let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse else { throw AdBlockError.download }
+        guard data.count <= Self.maxListBytes else { throw AdBlockError.download }
 
         // 304 Not Modified → reuse the compiled lists.
         if http.statusCode == 304, let entry = cache[urlString] {

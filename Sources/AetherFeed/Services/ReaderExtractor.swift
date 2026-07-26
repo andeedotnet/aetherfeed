@@ -7,7 +7,13 @@ import WebKit
 @MainActor
 enum ReaderExtractor {
     static func markdown(from webView: WKWebView) async -> String? {
-        guard let result = try? await webView.evaluateJavaScript(script) as? String else {
+        // `.defaultClient` keeps the script out of the page's JS world, so a
+        // hostile page cannot shadow the DOM APIs it relies on and dictate
+        // the extracted text.
+        guard
+            let result = try? await webView.evaluateJavaScript(
+                script, in: nil, contentWorld: .defaultClient) as? String
+        else {
             return nil
         }
         let trimmed = result.trimmingCharacters(in: .whitespacesAndNewlines)

@@ -93,8 +93,9 @@ final class SettingsStore {
     var openaiBaseURL: String {
         didSet { Self.defaults.set(openaiBaseURL, forKey: "openaiBaseURL") }
     }
+    /// Kept in the keychain, not in UserDefaults — see `KeychainStore`.
     var openaiAPIKey: String {
-        didSet { Self.defaults.set(openaiAPIKey, forKey: "openaiAPIKey") }
+        didSet { KeychainStore.set(openaiAPIKey, for: KeychainStore.openaiAPIKeyAccount) }
     }
     var openaiModel: String {
         didSet { Self.defaults.set(openaiModel, forKey: "openaiModel") }
@@ -155,7 +156,7 @@ final class SettingsStore {
         ollamaPort = defaults.object(forKey: "ollamaPort") as? Int ?? 11434
         ollamaModel = defaults.string(forKey: "ollamaModel") ?? ""
         openaiBaseURL = defaults.string(forKey: "openaiBaseURL") ?? "https://api.openai.com/v1"
-        openaiAPIKey = defaults.string(forKey: "openaiAPIKey") ?? ""
+        openaiAPIKey = Self.migratedAPIKey(defaults)
         openaiModel = defaults.string(forKey: "openaiModel") ?? ""
         // No apply() here — NSApp is not reliably up yet; the AppDelegate
         // applies the stored appearance at launch.
@@ -179,6 +180,20 @@ final class SettingsStore {
     /// System menus (File/Ablage …) come from AppKit and follow the app
     /// localization, not our Localizer. AppleLanguages overrides the
     /// language choice per app — takes effect from the next launch.
+    /// Reads the key from the keychain, moving a value written by an
+    /// earlier version out of UserDefaults on first launch.
+    private static func migratedAPIKey(_ defaults: UserDefaults) -> String {
+        let account = KeychainStore.openaiAPIKeyAccount
+        if let stored = KeychainStore.string(for: account) {
+            defaults.removeObject(forKey: account)
+            return stored
+        }
+        guard let legacy = defaults.string(forKey: account), !legacy.isEmpty else { return "" }
+        KeychainStore.set(legacy, for: account)
+        defaults.removeObject(forKey: account)
+        return legacy
+    }
+
     private static func syncSystemLanguage(_ language: AppLanguage) {
         defaults.set([language.rawValue], forKey: "AppleLanguages")
     }

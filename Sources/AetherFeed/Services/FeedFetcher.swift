@@ -26,7 +26,11 @@ actor FeedFetcher {
         let config = URLSessionConfiguration.ephemeral
         // We do conditional GET ourselves via ETag/Last-Modified in the DB.
         config.requestCachePolicy = .reloadIgnoringLocalCacheData
+        // Request timeout is an *idle* timeout — without a resource timeout
+        // a server trickling one byte every 29 s would hold a refresh slot
+        // forever.
         config.timeoutIntervalForRequest = 30
+        config.timeoutIntervalForResource = 120
         // Present as the installed Safari; some hosts block non-browser clients.
         config.httpAdditionalHeaders = [
             "User-Agent": SafariUserAgent.value,
@@ -35,6 +39,30 @@ actor FeedFetcher {
         ]
         session = URLSession(configuration: config)
     }
+
+    /// Feeds are parsed in memory, so a hostile or broken server must not be
+    /// able to hand us an unbounded body. A server that lies about its size
+    /// is still bounded by the resource timeout.
+    private static let maxFeedBytes = 8 * 1024 * 1024
+    private static let maxFaviconBytes = 256 * 1024
+
+    /// Redirects keep the scheme check of the initial URL meaningful:
+    /// without this, an https feed could quietly land on http (ATS is off)
+    /// or on a non-web scheme after up to 20 hops.
+    private final class RedirectGuard: NSObject, URLSessionTaskDelegate, Sendable {
+        func urlSession(
+            _ session: URLSession, task: URLSessionTask,
+            willPerformHTTPRedirection response: HTTPURLResponse,
+            newRequest request: URLRequest
+        ) async -> URLRequest? {
+            guard let scheme = request.url?.scheme?.lowercased(),
+                  scheme == "http" || scheme == "https"
+            else { return nil }
+            return request
+        }
+    }
+
+    private let redirectGuard = RedirectGuard()
 
     private struct FetchResult {
         var parsed: ParsedFeed?
@@ -108,13 +136,22 @@ actor FeedFetcher {
         for feed in feeds.prefix(10) {
             guard let feedId = feed.id, let url = Self.faviconURL(for: feed) else { continue }
             var data: Data?
-            if let (body, response) = try? await session.data(from: url),
+            if let (body, response) = try? await session.data(
+                for: URLRequest(url: url), delegate: redirectGuard),
                 let http = response as? HTTPURLResponse,
                 (200..<300).contains(http.statusCode),
-                !body.isEmpty, body.count <= 256 * 1024 {
+                !body.isEmpty, body.count <= Self.maxFaviconBytes {
                 data = body
             }
             try? await repository.saveFavicon(feedId: feedId, data: data)
+        }
+    }
+
+    /// `hasPrefix("http")` would also accept schemes like `httpfoo`.
+    static func isWebURL(_ url: URL) -> Bool {
+        switch url.scheme?.lowercased() {
+        case "http", "https": true
+        default: false
         }
     }
 
@@ -153,15 +190,16 @@ actor FeedFetcher {
     // MARK: - Internal
 
     private func fetch(urlString: String, etag: String?, lastModified: String?) async throws -> FetchResult {
-        guard let url = URL(string: urlString), url.scheme?.hasPrefix("http") == true else {
+        guard let url = URL(string: urlString), Self.isWebURL(url) else {
             throw FeedFetchError.invalidURL
         }
         var request = URLRequest(url: url)
         if let etag { request.setValue(etag, forHTTPHeaderField: "If-None-Match") }
         if let lastModified { request.setValue(lastModified, forHTTPHeaderField: "If-Modified-Since") }
 
-        let (data, response) = try await session.data(for: request)
+        let (data, response) = try await session.data(for: request, delegate: redirectGuard)
         guard let http = response as? HTTPURLResponse else { throw FeedFetchError.invalidURL }
+        guard data.count <= Self.maxFeedBytes else { throw FeedFetchError.notAFeed }
 
         if http.statusCode == 304 {
             return FetchResult(notModified: true)
