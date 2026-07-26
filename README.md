@@ -1,3 +1,7 @@
+<p align="left">
+  <img src="Resources/icon-256.png" width="128" alt="AetherFeed app icon">
+</p>
+
 # AetherFeed
 
 Native RSS/Atom reader for macOS with AI enrichment: per-article summaries and
