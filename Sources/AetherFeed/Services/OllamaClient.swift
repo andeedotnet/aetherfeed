@@ -17,13 +17,18 @@ struct OllamaConfig: Sendable {
         )
     }
 
+    /// An explicitly typed scheme always wins. Without one, plain http is
+    /// only assumed for LAN/loopback servers — a host on the public
+    /// internet defaults to https so article text never leaves the machine
+    /// in the clear (the app's ATS settings block cleartext there anyway).
     var baseURL: URL? {
         let trimmed = host.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
         if trimmed.contains("://") {
             return URL(string: trimmed)
         }
-        return URL(string: "http://\(trimmed):\(port)")
+        let scheme = NetworkPolicy.isLocalHost(trimmed) ? "http" : "https"
+        return URL(string: "\(scheme)://\(trimmed):\(port)")
     }
 }
 

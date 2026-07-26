@@ -1,6 +1,7 @@
 import Foundation
 import GRDB
 import Observation
+import os
 
 struct ArticleListRow: Equatable, Sendable, Identifiable {
     var id: Int64
@@ -26,6 +27,9 @@ final class ArticleListModel {
 
     private var observation: Task<Void, Never>?
 
+    private static let log = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "AetherFeed", category: "search")
+
     func observe(_ selection: SidebarSelection, search: String = "") {
         guard selection != currentSelection || search != currentSearch else { return }
         currentSelection = selection
@@ -36,7 +40,7 @@ final class ArticleListModel {
         let valueObservation = ValueObservation.tracking { db in
             search.isEmpty
                 ? try Self.fetchRows(db, selection: selection)
-                : try Self.searchRows(db, query: search)
+                : try Self.searchRows(db, query: search, selection: selection)
         }
         observation = Task { [weak self] in
             do {
@@ -44,37 +48,56 @@ final class ArticleListModel {
                     guard let self else { return }
                     self.rows = rows
                 }
+            } catch is CancellationError {
+                // Selection or search text changed — expected.
             } catch {
-                // Cancelled on selection change or DB error — nothing to do.
+                // Without this the list would just stay empty, with no hint
+                // as to why (e.g. an FTS syntax error).
+                Self.log.error("article list observation failed: \(error)")
             }
         }
     }
 
-    nonisolated private static func fetchRows(
-        _ db: Database, selection: SidebarSelection
-    ) throws -> [ArticleListRow] {
+    /// The joins/conditions a sidebar selection implies. Shared by the plain
+    /// listing and the search so that searching inside a feed, category or
+    /// tag stays scoped to it.
+    private struct Scope {
         var joins = " JOIN feed ON feed.id = article.feedId"
-        var condition = ""
-        var arguments: StatementArguments = []
+        /// Without the `WHERE` keyword so callers can combine it.
+        var predicate: String?
+        var values: [(any DatabaseValueConvertible)?] = []
+    }
 
+    nonisolated private static func scope(for selection: SidebarSelection) -> Scope {
+        var scope = Scope()
         switch selection {
         case .home, .all:
             break
         case .unread:
-            condition = " WHERE article.isRead = 0"
+            scope.predicate = "article.isRead = 0"
         case .starred:
-            condition = " WHERE article.isStarred = 1"
+            scope.predicate = "article.isStarred = 1"
         case .feed(let id):
-            condition = " WHERE article.feedId = ?"
-            arguments = [id]
+            scope.predicate = "article.feedId = ?"
+            scope.values = [id]
         case .category(let id):
-            condition = " WHERE feed.categoryId = ?"
-            arguments = [id]
+            scope.predicate = "feed.categoryId = ?"
+            scope.values = [id]
         case .tag(let id):
-            joins += " JOIN articleTag ON articleTag.articleId = article.id"
-            condition = " WHERE articleTag.tagId = ?"
-            arguments = [id]
+            scope.joins += " JOIN articleTag ON articleTag.articleId = article.id"
+            scope.predicate = "articleTag.tagId = ?"
+            scope.values = [id]
         }
+        return scope
+    }
+
+    nonisolated static func fetchRows(
+        _ db: Database, selection: SidebarSelection
+    ) throws -> [ArticleListRow] {
+        let scope = Self.scope(for: selection)
+        let joins = scope.joins
+        let condition = scope.predicate.map { " WHERE \($0)" } ?? ""
+        let arguments = StatementArguments(scope.values)
 
         let sql = """
             SELECT article.id, article.title, article.publishedAt, article.isRead,
@@ -119,13 +142,22 @@ final class ArticleListModel {
         }
     }
 
-    /// Full-text search across title, content, and AI summary (FTS5, prefix match).
-    nonisolated private static func searchRows(_ db: Database, query: String) throws -> [ArticleListRow] {
+    /// Full-text search across title, content, and AI summary (FTS5, prefix
+    /// match), restricted to the current sidebar selection — the search
+    /// field sits above that list, so it must not return other feeds' hits.
+    nonisolated static func searchRows(
+        _ db: Database, query: String, selection: SidebarSelection
+    ) throws -> [ArticleListRow] {
         let match = query
             .split(whereSeparator: \.isWhitespace)
             .map { "\"\($0.replacingOccurrences(of: "\"", with: "\"\""))\"*" }
             .joined(separator: " ")
         guard !match.isEmpty else { return [] }
+
+        let scope = Self.scope(for: selection)
+        // `scope.joins` already contains the feed join the search needs.
+        let condition = scope.predicate.map { " AND \($0)" } ?? ""
+        let arguments = StatementArguments([match] + scope.values)
 
         return try Row.fetchAll(
             db,
@@ -135,13 +167,12 @@ final class ArticleListModel {
                        article.llmStatus, article.isStarred,
                        COALESCE(NULLIF(feed.customTitle, ''), feed.title) AS feedTitle
                 FROM article_ft
-                JOIN article ON article.id = article_ft.rowid
-                JOIN feed ON feed.id = article.feedId
-                WHERE article_ft MATCH ?
+                JOIN article ON article.id = article_ft.rowid\(scope.joins)
+                WHERE article_ft MATCH ?\(condition)
                 ORDER BY rank
                 LIMIT 200
                 """,
-            arguments: [match]
+            arguments: arguments
         ).map { row in
             let summary: String? = row["summary"]
             let contentText: String? = row["contentText"]

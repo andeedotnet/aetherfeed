@@ -64,6 +64,9 @@ extension L10nKey {
         .errorLLMUnreachable: "Serveur IA inaccessible : %@",
         .errorLLMUnauthorized: "Clé API invalide ou manquante",
         .errorLLMBadResponse: "Réponse inattendue du serveur IA",
+        .errorInsecureEndpoint:
+            "La clé API serait transmise en clair — utilisez https:// (ou un serveur du réseau local)",
+        .ollamaHostHint: "Sans schéma : http sur le réseau local, https sinon",
 
         .settingsAI: "IA",
         .llmProvider: "Fournisseur",

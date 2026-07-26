@@ -158,6 +158,12 @@ struct OpenAIClient: LLMClient {
 
     private func endpoint(_ path: String) throws -> URL {
         guard let base = config.url else { throw LLMError.notConfigured }
+        // An API key must never travel in the clear to a public host —
+        // localhost/LAN servers (LM Studio, llama.cpp) stay allowed, and
+        // without a key there is nothing to protect.
+        guard config.apiKey.trimmingCharacters(in: .whitespaces).isEmpty
+            || NetworkPolicy.isSecureOrLocal(base)
+        else { throw LLMError.insecureEndpoint }
         return base.appending(path: path)
     }
 

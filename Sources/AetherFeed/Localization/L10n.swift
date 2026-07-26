@@ -69,6 +69,8 @@ enum L10nKey: String, CaseIterable {
     case errorLLMUnreachable
     case errorLLMUnauthorized
     case errorLLMBadResponse
+    case errorInsecureEndpoint
+    case ollamaHostHint
 
     case settingsAI
     case llmProvider

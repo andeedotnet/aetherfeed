@@ -42,6 +42,8 @@ enum LLMError: Error, LocalizedError, Sendable {
     case badResponse
     case appleUnavailable(AppleUnavailableReason)
     case contentRejected
+    /// An API key would have gone to a public host over plain http.
+    case insecureEndpoint
 
     /// Connection/configuration errors pause the whole pipeline;
     /// `badResponse` and `contentRejected` (a guardrail refusing one
@@ -73,6 +75,7 @@ enum LLMError: Error, LocalizedError, Sendable {
             case .other: L10nKey.localizedOffMain(.errorAppleUnavailable)
             }
         case .contentRejected: L10nKey.localizedOffMain(.errorAppleRejected)
+        case .insecureEndpoint: L10nKey.localizedOffMain(.errorInsecureEndpoint)
         }
     }
 }

@@ -34,7 +34,12 @@
 	<true/>
 	<key>NSAppTransportSecurity</key>
 	<dict>
-		<key>NSAllowsArbitraryLoads</key>
+		<!-- Article pages: the open web still serves http-only sites. -->
+		<key>NSAllowsArbitraryLoadsInWebContent</key>
+		<true/>
+		<!-- AI servers on the LAN or loopback (Ollama, LM Studio) speak http.
+		     Cleartext to public hosts stays blocked. -->
+		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
 </dict>

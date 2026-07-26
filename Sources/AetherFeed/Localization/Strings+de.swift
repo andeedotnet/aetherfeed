@@ -64,6 +64,9 @@ extension L10nKey {
         .errorLLMUnreachable: "KI-Server nicht erreichbar: %@",
         .errorLLMUnauthorized: "Ungültiger oder fehlender API-Schlüssel",
         .errorLLMBadResponse: "Unerwartete Antwort vom KI-Server",
+        .errorInsecureEndpoint:
+            "Der API-Schlüssel würde unverschlüsselt übertragen — verwende https:// (oder einen Server im lokalen Netz)",
+        .ollamaHostHint: "Ohne Schema: http im lokalen Netz, sonst https",
 
         .settingsAI: "KI",
         .llmProvider: "Anbieter",

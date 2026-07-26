@@ -125,6 +125,9 @@ private struct AISettingsView: View {
                     TextField(
                         l10n[.ollamaHost], text: $settings.ollamaHost,
                         prompt: Text(verbatim: "ollama.example.com"))
+                    Text(l10n[.ollamaHostHint])
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                     TextField(
                         l10n[.ollamaPort], value: $settings.ollamaPort,
                         format: .number.grouping(.never))

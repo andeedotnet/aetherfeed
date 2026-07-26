@@ -20,12 +20,22 @@ enum HTMLStripper {
                     }
                     continue
                 }
-                guard let tagEnd = html[index...].firstIndex(of: ">") else { break }
+                // A stray `<` in prose ("a < b") is text, not a tag — dropping
+                // the rest of the document here would silently truncate the
+                // article.
+                guard let tagEnd = html[index...].firstIndex(of: ">") else {
+                    text.append(character)
+                    index = html.index(after: index)
+                    continue
+                }
                 let tag = html[html.index(after: index)..<tagEnd]
-                let name = tagName(of: tag)
+                let (name, isClosing) = tagName(of: tag)
                 index = html.index(after: tagEnd)
 
-                if name == "script" || name == "style" {
+                // Only an *opening* script/style tag starts a skipped block.
+                // Treating a stray `</script>` as an opener used to swallow
+                // everything after it.
+                if !isClosing, name == "script" || name == "style" {
                     if let closing = html.range(
                         of: "</\(name)", options: .caseInsensitive, range: index..<html.endIndex
                     ), let closingEnd = html[closing.upperBound...].firstIndex(of: ">") {
@@ -59,10 +69,11 @@ enum HTMLStripper {
         "figure", "figcaption", "pre", "hr",
     ]
 
-    private static func tagName(of tag: Substring) -> Substring {
+    private static func tagName(of tag: Substring) -> (name: Substring, isClosing: Bool) {
         var body = tag
-        if body.hasPrefix("/") { body = body.dropFirst() }
-        return body.prefix { $0.isLetter || $0.isNumber }.lowercased()[...]
+        let isClosing = body.hasPrefix("/")
+        if isClosing { body = body.dropFirst() }
+        return (body.prefix { $0.isLetter || $0.isNumber }.lowercased()[...], isClosing)
     }
 
     private static let namedEntities: [Substring: String] = [

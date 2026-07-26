@@ -64,6 +64,9 @@ extension L10nKey {
         .errorLLMUnreachable: "Server AI non raggiungibile: %@",
         .errorLLMUnauthorized: "Chiave API non valida o mancante",
         .errorLLMBadResponse: "Risposta inattesa dal server AI",
+        .errorInsecureEndpoint:
+            "La chiave API verrebbe inviata in chiaro — usa https:// (o un server nella rete locale)",
+        .ollamaHostHint: "Senza schema: http nella rete locale, altrimenti https",
 
         .settingsAI: "AI",
         .llmProvider: "Provider",
