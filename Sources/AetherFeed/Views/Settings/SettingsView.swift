@@ -26,48 +26,67 @@ private struct GeneralSettingsView: View {
     var body: some View {
         @Bindable var settings = settings
         Form {
-            Picker(l10n[.uiLanguage], selection: $settings.uiLanguage) {
-                ForEach(AppLanguage.allCases) { language in
-                    Text(language.displayName).tag(language)
+            Section {
+                Picker(l10n[.appearance], selection: $settings.appearance) {
+                    Text(l10n[.appearanceSystem]).tag(AppAppearance.system)
+                    Text(l10n[.appearanceLight]).tag(AppAppearance.light)
+                    Text(l10n[.appearanceDark]).tag(AppAppearance.dark)
                 }
-            }
-            Text(l10n[.uiLanguageRestartHint])
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Picker(l10n[.summaryLanguage], selection: $settings.summaryLanguage) {
-                Text(l10n[.languageGerman]).tag(SummaryLanguage.de)
-                Text(l10n[.languageEnglish]).tag(SummaryLanguage.en)
-                Text(l10n[.languageItalian]).tag(SummaryLanguage.it)
-                Text(l10n[.languageFrench]).tag(SummaryLanguage.fr)
-                Text(l10n[.languageSpanish]).tag(SummaryLanguage.es)
-                Text(l10n[.summaryLanguageOriginal]).tag(SummaryLanguage.original)
-            }
-            Picker(l10n[.refreshInterval], selection: $settings.refreshIntervalMinutes) {
-                Text(l10n[.refreshOff]).tag(0)
-                Text(l10n[.refreshOnLaunch]).tag(-1)
-                ForEach([5, 15, 30, 60, 120], id: \.self) { minutes in
-                    Text(l10n[.refreshEveryMinutes, minutes]).tag(minutes)
-                }
-            }
-            Picker(l10n[.settingsRetention], selection: $settings.retentionDays) {
-                Text(l10n[.retentionUnlimited]).tag(0)
-                ForEach([7, 30, 90], id: \.self) { days in
-                    Text(l10n[.retentionDaysFormat, days]).tag(days)
-                }
-            }
-            Toggle(l10n[.settingsNotifications], isOn: $settings.notifyNewArticles)
-                .onChange(of: settings.notifyNewArticles) { _, enabled in
-                    if enabled {
-                        Task { await NotificationService.requestAuthorization() }
+                Picker(l10n[.uiLanguage], selection: $settings.uiLanguage) {
+                    ForEach(AppLanguage.allCases) { language in
+                        Text(language.displayName).tag(language)
                     }
                 }
-            Toggle(l10n[.settingsNotifySummaries], isOn: $settings.notifySummaryReady)
-                .onChange(of: settings.notifySummaryReady) { _, enabled in
-                    if enabled {
-                        Task { await NotificationService.requestAuthorization() }
+                Picker(l10n[.summaryLanguage], selection: $settings.summaryLanguage) {
+                    Text(l10n[.languageGerman]).tag(SummaryLanguage.de)
+                    Text(l10n[.languageEnglish]).tag(SummaryLanguage.en)
+                    Text(l10n[.languageItalian]).tag(SummaryLanguage.it)
+                    Text(l10n[.languageFrench]).tag(SummaryLanguage.fr)
+                    Text(l10n[.languageSpanish]).tag(SummaryLanguage.es)
+                    Text(l10n[.summaryLanguageOriginal]).tag(SummaryLanguage.original)
+                }
+            } header: {
+                Text(l10n[.settingsSectionAppearance])
+            } footer: {
+                Text(l10n[.uiLanguageRestartHint])
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section(l10n[.settingsSectionFeeds]) {
+                Picker(l10n[.refreshInterval], selection: $settings.refreshIntervalMinutes) {
+                    Text(l10n[.refreshOff]).tag(0)
+                    Text(l10n[.refreshOnLaunch]).tag(-1)
+                    ForEach([5, 15, 30, 60, 120], id: \.self) { minutes in
+                        Text(l10n[.refreshEveryMinutes, minutes]).tag(minutes)
                     }
                 }
-            Toggle(l10n[.settingsCheckUpdates], isOn: $settings.checkUpdatesAtLaunch)
+                Picker(l10n[.settingsRetention], selection: $settings.retentionDays) {
+                    Text(l10n[.retentionUnlimited]).tag(0)
+                    ForEach([7, 30, 90], id: \.self) { days in
+                        Text(l10n[.retentionDaysFormat, days]).tag(days)
+                    }
+                }
+            }
+
+            Section(l10n[.settingsSectionNotifications]) {
+                Toggle(l10n[.settingsNotifications], isOn: $settings.notifyNewArticles)
+                    .onChange(of: settings.notifyNewArticles) { _, enabled in
+                        if enabled {
+                            Task { await NotificationService.requestAuthorization() }
+                        }
+                    }
+                Toggle(l10n[.settingsNotifySummaries], isOn: $settings.notifySummaryReady)
+                    .onChange(of: settings.notifySummaryReady) { _, enabled in
+                        if enabled {
+                            Task { await NotificationService.requestAuthorization() }
+                        }
+                    }
+            }
+
+            Section(l10n[.settingsSectionUpdates]) {
+                Toggle(l10n[.settingsCheckUpdates], isOn: $settings.checkUpdatesAtLaunch)
+            }
         }
         .formStyle(.grouped)
     }

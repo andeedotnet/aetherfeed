@@ -10,6 +10,14 @@ enum L10nKey: String, CaseIterable {
 
     case settingsGeneral
     case settingsOllama
+    case settingsSectionAppearance
+    case settingsSectionFeeds
+    case settingsSectionNotifications
+    case settingsSectionUpdates
+    case appearance
+    case appearanceSystem
+    case appearanceLight
+    case appearanceDark
     case uiLanguage
     case summaryLanguage
     case languageGerman

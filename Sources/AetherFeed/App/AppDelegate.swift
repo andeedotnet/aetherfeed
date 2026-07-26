@@ -8,6 +8,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if Bundle.main.bundleIdentifier == nil {
             NSApp.setActivationPolicy(.regular)
         }
+        AppAppearance.current.apply()
         NSApp.activate()
     }
 
