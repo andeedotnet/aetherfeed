@@ -105,6 +105,7 @@ extension L10nKey {
         .pendingSummariesHelp: "%d articles waiting for AI summary",
         .settingsCategoryColor: "Category color",
         .settingsCategoryColorClear: "Remove color",
+        .settingsCategoryReorderHint: "Drag to reorder",
 
         .settingsAdBlock: "Ad blocker",
         .adBlockEnable: "Enable ad blocker",

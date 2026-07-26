@@ -108,6 +108,7 @@ extension L10nKey {
         .pendingSummariesHelp: "%d articles en attente du résumé IA",
         .settingsCategoryColor: "Couleur de la catégorie",
         .settingsCategoryColorClear: "Retirer la couleur",
+        .settingsCategoryReorderHint: "Faites glisser pour réordonner",
 
         .settingsAdBlock: "Bloqueur de publicités",
         .adBlockEnable: "Activer le bloqueur de publicités",

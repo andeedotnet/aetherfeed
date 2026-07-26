@@ -159,16 +159,13 @@ struct SidebarView: View {
         Task { try? await Repository.shared.markAllRead(matching: selection) }
     }
 
-    /// Colored, filled folder when a category color is set; otherwise the
-    /// default outline folder in the accent color (as before).
-    @ViewBuilder
+    /// Always the outline folder — a category color tints its stroke
+    /// instead of filling the whole glyph; without a color the icon keeps
+    /// the default foreground style.
     private func categoryIcon(colorHex: String?) -> some View {
-        if let color = Color(hex: colorHex) {
-            Image(systemName: "folder.fill")
-                .foregroundStyle(color)
-        } else {
-            Image(systemName: "folder")
-        }
+        Image(systemName: "folder")
+            .foregroundStyle(
+                Color(hex: colorHex).map(AnyShapeStyle.init) ?? AnyShapeStyle(.foreground))
     }
 
     private var selectionBinding: Binding<SidebarSelection?> {

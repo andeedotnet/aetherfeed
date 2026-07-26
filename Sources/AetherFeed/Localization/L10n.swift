@@ -110,6 +110,7 @@ enum L10nKey: String, CaseIterable {
     case pendingSummariesHelp
     case settingsCategoryColor
     case settingsCategoryColorClear
+    case settingsCategoryReorderHint
 
     case settingsAdBlock
     case adBlockEnable
