@@ -171,6 +171,15 @@ private struct AISettingsView: View {
                         Text(l10n[.appleModelName])
                             .foregroundStyle(.secondary)
                     }
+                    // Only the on-device model spends this Mac's own energy.
+                    Toggle(l10n[.settingsPauseOnBattery], isOn: $settings.pauseLLMOnBattery)
+                        .onChange(of: settings.pauseLLMOnBattery) {
+                            // Switching it off resumes right away.
+                            Task { await LLMPipeline.shared.kick() }
+                        }
+                    Text(l10n[.settingsPauseOnBatteryHint])
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 } else {
                     Picker(l10n[.ollamaModel], selection: modelBinding) {
                         let current = modelBinding.wrappedValue
@@ -254,6 +263,15 @@ private struct AISettingsView: View {
     }
 
     private func testConnection() {
+        guard
+            !AIPowerGate.blocks(
+                provider: settings.llmProvider, settingEnabled: settings.pauseLLMOnBattery,
+                onBattery: PowerMonitor.shared.isOnBattery)
+        else {
+            testMessage = l10n[.aiPausedOnBattery]
+            testFailed = true
+            return
+        }
         isTesting = true
         testMessage = nil
         let client = currentClient()

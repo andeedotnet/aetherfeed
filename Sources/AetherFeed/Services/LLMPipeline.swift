@@ -10,12 +10,16 @@ final class LLMStatusStore {
 
     private(set) var isProcessing = false
     private(set) var pauseMessage: String?
+    /// Distinguishes the battery pause from an error pause: it resolves by
+    /// plugging in, not by retrying.
+    private(set) var pausedOnBattery = false
 
     var isPaused: Bool { pauseMessage != nil }
 
-    fileprivate func update(processing: Bool, pause: String?) {
+    fileprivate func update(processing: Bool, pause: String?, onBattery: Bool = false) {
         isProcessing = processing
         pauseMessage = pause
+        pausedOnBattery = onBattery
     }
 }
 
@@ -55,10 +59,16 @@ actor LLMPipeline {
             await LLMStatusStore.shared.update(processing: false, pause: nil)
             return
         }
+        if await stopForBattery() { return }
         await LLMStatusStore.shared.update(processing: true, pause: nil)
 
         while true {
-            while let article = try? await repository.claimNextPendingArticle() {
+            while true {
+                // Checked before every claim: unplugging stops the queue after
+                // the article in flight, and nothing is left stuck in
+                // `processing` because no article has been claimed yet.
+                if await stopForBattery() { return }
+                guard let article = try? await repository.claimNextPendingArticle() else { break }
                 guard let articleId = article.id else { continue }
                 do {
                     let (summary, tags) = try await analyze(article, with: client)
@@ -78,6 +88,9 @@ actor LLMPipeline {
             // Queue fully drained — now the digest can cover processed
             // articles (regenerates when missing or outdated). The
             // "digest ready" notification fires in there, after saving.
+            // The digest is the longest run of model calls, so the battery
+            // gate decides here whether it starts at all.
+            if await stopForBattery() { return }
             await DigestService.shared.generateIfNeeded()
 
             // Kicks are swallowed while this worker runs, and the digest
@@ -89,10 +102,25 @@ actor LLMPipeline {
         }
     }
 
+    /// Publishes the battery pause and reports whether this run has to stop.
+    /// The banner only goes up while articles are actually waiting —
+    /// otherwise nothing is being withheld and a permanent banner for the
+    /// whole time on battery would just be noise. Resuming happens through
+    /// `kick()` — from `PowerMonitor` when the charger is back, or from the
+    /// settings toggle.
+    private func stopForBattery() async -> Bool {
+        guard AIPowerGate.isBlocking else { return false }
+        let waiting = (try? await repository.hasPendingArticles()) ?? false
+        await LLMStatusStore.shared.update(
+            processing: false, pause: waiting ? AIPowerGate.message : nil, onBattery: waiting)
+        return true
+    }
+
     /// Category suggestion when adding a feed: loads the feed (without storing
     /// it) and lets the LLM choose from existing categories or propose a new
     /// one — the user makes the final decision in the dialog.
     func suggestCategory(urlString: String) async throws -> CategorySuggestion {
+        guard !AIPowerGate.isBlocking else { throw LLMError.pausedOnBattery }
         guard let client = LLMClientFactory.current() else { throw LLMError.notConfigured }
         let parsed = try await FeedFetcher.shared.preview(urlString: urlString)
         let existing = (try? await repository.allCategoryNames()) ?? []

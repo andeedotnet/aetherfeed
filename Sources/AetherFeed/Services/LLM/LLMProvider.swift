@@ -44,6 +44,8 @@ enum LLMError: Error, LocalizedError, Sendable {
     case contentRejected
     /// An API key would have gone to a public host over plain http.
     case insecureEndpoint
+    /// On-device processing is suspended while the Mac runs on battery.
+    case pausedOnBattery
 
     /// Connection/configuration errors pause the whole pipeline;
     /// `badResponse` and `contentRejected` (a guardrail refusing one
@@ -76,6 +78,7 @@ enum LLMError: Error, LocalizedError, Sendable {
             }
         case .contentRejected: L10nKey.localizedOffMain(.errorAppleRejected)
         case .insecureEndpoint: L10nKey.localizedOffMain(.errorInsecureEndpoint)
+        case .pausedOnBattery: L10nKey.localizedOffMain(.aiPausedOnBattery)
         }
     }
 }

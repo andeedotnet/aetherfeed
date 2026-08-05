@@ -267,6 +267,22 @@ struct ArticleDetailView: View {
                         }
                     }
                     .controlSize(.small)
+                    .disabled(batteryGateActive)
+                }
+                if batteryGateActive {
+                    Text(l10n[.aiPausedOnBattery])
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            } else if batteryGateActive {
+                // Still pending, but the queue is idle — say so instead of
+                // spinning forever.
+                HStack(spacing: 6) {
+                    Image(systemName: "battery.25")
+                        .foregroundStyle(.secondary)
+                    Text(l10n[.aiPausedOnBattery])
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
                 }
             } else {
                 HStack(spacing: 6) {
@@ -279,6 +295,14 @@ struct ArticleDetailView: View {
         }
         .padding(12)
         .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 10))
+    }
+
+    /// Whether on-device processing is suspended right now. Both inputs are
+    /// observable, so the summary box follows the charger live.
+    private var batteryGateActive: Bool {
+        AIPowerGate.blocks(
+            provider: settings.llmProvider, settingEnabled: settings.pauseLLMOnBattery,
+            onBattery: PowerMonitor.shared.isOnBattery)
     }
 
     private func header(for article: Article) -> some View {

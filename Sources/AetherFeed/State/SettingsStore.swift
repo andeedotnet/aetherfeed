@@ -136,6 +136,11 @@ final class SettingsStore {
     var checkUpdatesAtLaunch: Bool {
         didSet { Self.defaults.set(checkUpdatesAtLaunch, forKey: "checkUpdatesAtLaunch") }
     }
+    /// Apple Intelligence computes on this Mac — keep the queue and the
+    /// briefing idle while unplugged. Ignored for the remote backends.
+    var pauseLLMOnBattery: Bool {
+        didSet { Self.defaults.set(pauseLLMOnBattery, forKey: "pauseLLMOnBattery") }
+    }
     /// Detail view preference: feed text instead of the article's web page.
     var showFeedTextInDetail: Bool {
         didSet { Self.defaults.set(showFeedTextInDetail, forKey: "showFeedTextInDetail") }
@@ -170,6 +175,7 @@ final class SettingsStore {
         notifyNewArticles = defaults.bool(forKey: "notifyNewArticles")
         notifySummaryReady = defaults.bool(forKey: "notifySummaryReady")
         checkUpdatesAtLaunch = defaults.object(forKey: "checkUpdatesAtLaunch") as? Bool ?? true
+        pauseLLMOnBattery = AIPowerGate.pauseOnBatteryEnabled
         showFeedTextInDetail = defaults.bool(forKey: "showFeedTextInDetail")
         adBlockEnabled = defaults.bool(forKey: "adBlockEnabled")
         blocklistURLs = defaults.stringArray(forKey: "blocklistURLs") ?? []

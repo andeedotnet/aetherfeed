@@ -58,6 +58,7 @@ extension L10nKey {
         .aiSummary: "Resumen de IA",
         .aiProcessing: "Resumiendo …",
         .aiPaused: "Procesamiento de IA en pausa",
+        .aiPausedOnBattery: "Funcionando con batería: se reanuda con la corriente",
         .retry: "Reintentar",
         .errorLLMNotConfigured: "La IA no está configurada — configúrala en Ajustes",
         .errorLLMNoModel: "Ningún modelo seleccionado",
@@ -74,6 +75,11 @@ extension L10nKey {
         .providerOpenAI: "OpenAI / compatible",
         .openaiBaseURL: "URL base",
         .openaiAPIKey: "Clave API",
+        .settingsPauseOnBattery: "Pausar el procesamiento de IA con batería",
+        .settingsPauseOnBatteryHint:
+            "Apple Intelligence se ejecuta localmente en este Mac. Con batería, la cola y el "
+            + "briefing permanecen en pausa y se reanudan automáticamente al conectar la "
+            + "corriente.",
 
         .sidebarHome: "Inicio",
         .digestTitle: "Novedades",

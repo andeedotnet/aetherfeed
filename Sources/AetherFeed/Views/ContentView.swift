@@ -94,6 +94,7 @@ struct ContentView: View {
                 self.scheduler = scheduler
                 await NotificationService.setUpAtLaunch()
                 await UpdateChecker.shared.checkAtLaunch()
+                PowerMonitor.shared.startAtLaunch()
                 await LLMPipeline.shared.startAtLaunch()
                 await AdBlockManager.shared.startAtLaunch()
             }
@@ -139,6 +140,9 @@ struct ContentView: View {
                 HStack(spacing: 5) {
                     if LLMStatusStore.shared.isProcessing {
                         ProgressView().controlSize(.small)
+                    } else if LLMStatusStore.shared.pausedOnBattery {
+                        // Otherwise a battery pause looks exactly like idle.
+                        Image(systemName: "battery.25")
                     } else {
                         Image(systemName: "sparkles")
                     }

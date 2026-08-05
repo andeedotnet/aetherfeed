@@ -58,6 +58,7 @@ extension L10nKey {
         .aiSummary: "KI-Zusammenfassung",
         .aiProcessing: "Wird zusammengefasst …",
         .aiPaused: "KI-Verarbeitung pausiert",
+        .aiPausedOnBattery: "Batteriebetrieb – wird bei Netzstrom fortgesetzt",
         .retry: "Erneut versuchen",
         .errorLLMNotConfigured: "KI ist nicht konfiguriert — in den Einstellungen einrichten",
         .errorLLMNoModel: "Kein Modell ausgewählt",
@@ -74,6 +75,11 @@ extension L10nKey {
         .providerOpenAI: "OpenAI / kompatibel",
         .openaiBaseURL: "Basis-URL",
         .openaiAPIKey: "API-Schlüssel",
+        .settingsPauseOnBattery: "KI-Verarbeitung im Batteriebetrieb anhalten",
+        .settingsPauseOnBatteryHint:
+            "Apple Intelligence rechnet lokal auf diesem Mac. Ohne Netzstrom ruhen "
+            + "Warteschlange und Briefing und laufen automatisch weiter, sobald das "
+            + "Netzteil angeschlossen ist.",
 
         .sidebarHome: "Startseite",
         .digestTitle: "Das ist neu",

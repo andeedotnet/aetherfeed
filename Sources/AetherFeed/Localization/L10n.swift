@@ -63,6 +63,7 @@ enum L10nKey: String, CaseIterable {
     case aiSummary
     case aiProcessing
     case aiPaused
+    case aiPausedOnBattery
     case retry
     case errorLLMNotConfigured
     case errorLLMNoModel
@@ -78,6 +79,8 @@ enum L10nKey: String, CaseIterable {
     case providerOpenAI
     case openaiBaseURL
     case openaiAPIKey
+    case settingsPauseOnBattery
+    case settingsPauseOnBatteryHint
 
     case sidebarHome
     case digestTitle
