@@ -10,6 +10,10 @@ struct ArticleListView: View {
             ForEach(model.rows) { row in
                 ArticleRowView(row: row)
                     .tag(row.id)
+                    // Advertorials sit on a grey plate; it lies under the
+                    // selection highlight, so selected rows stay readable.
+                    .listRowBackground(
+                        row.isAdvertising ? Color.secondary.opacity(0.08) : Color.clear)
                     .contextMenu { rowMenu(for: row) }
             }
         }

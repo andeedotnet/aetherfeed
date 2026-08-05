@@ -28,6 +28,11 @@ extension ArticleTag: FetchableRecord, PersistableRecord {
 struct GeneratedTag: Sendable {
     var de: String
     var en: String
+
+    /// The sole tag an advertorial gets — the model's own tags are dropped.
+    /// Deliberately not an `L10nKey`: tags live bilingually in the DB, so
+    /// this one goes through the same dedup path as every generated tag.
+    static let advertising = GeneratedTag(de: "Werbung", en: "Advertising")
 }
 
 /// A tag prepared for display; the UI picks the label per current language.

@@ -141,6 +141,10 @@ final class SettingsStore {
     var pauseLLMOnBattery: Bool {
         didSet { Self.defaults.set(pauseLLMOnBattery, forKey: "pauseLLMOnBattery") }
     }
+    /// Articles the LLM classified as advertising go straight to read.
+    var markAdvertisingRead: Bool {
+        didSet { Self.defaults.set(markAdvertisingRead, forKey: "markAdvertisingRead") }
+    }
     /// Detail view preference: feed text instead of the article's web page.
     var showFeedTextInDetail: Bool {
         didSet { Self.defaults.set(showFeedTextInDetail, forKey: "showFeedTextInDetail") }
@@ -176,6 +180,7 @@ final class SettingsStore {
         notifySummaryReady = defaults.bool(forKey: "notifySummaryReady")
         checkUpdatesAtLaunch = defaults.object(forKey: "checkUpdatesAtLaunch") as? Bool ?? true
         pauseLLMOnBattery = AIPowerGate.pauseOnBatteryEnabled
+        markAdvertisingRead = defaults.object(forKey: "markAdvertisingRead") as? Bool ?? true
         showFeedTextInDetail = defaults.bool(forKey: "showFeedTextInDetail")
         adBlockEnabled = defaults.bool(forKey: "adBlockEnabled")
         blocklistURLs = defaults.stringArray(forKey: "blocklistURLs") ?? []

@@ -13,6 +13,7 @@ struct ArticleListRow: Equatable, Sendable, Identifiable {
     var url: String?
     var llmFailed = false
     var isStarred = false
+    var isAdvertising = false
     var tags: [LocalizedTag] = []
 }
 
@@ -102,7 +103,7 @@ final class ArticleListModel {
         let sql = """
             SELECT article.id, article.title, article.publishedAt, article.isRead,
                    article.summary, article.contentText, article.url,
-                   article.llmStatus, article.isStarred,
+                   article.llmStatus, article.isStarred, article.isAdvertising,
                    COALESCE(NULLIF(feed.customTitle, ''), feed.title) AS feedTitle
             FROM article\(joins)\(condition)
             ORDER BY COALESCE(article.publishedAt, article.createdAt) DESC
@@ -137,6 +138,7 @@ final class ArticleListModel {
                 url: row["url"],
                 llmFailed: row["llmStatus"] == LLMStatus.failed.rawValue,
                 isStarred: row["isStarred"],
+                isAdvertising: row["isAdvertising"],
                 tags: tagsByArticle[id] ?? []
             )
         }
@@ -164,7 +166,7 @@ final class ArticleListModel {
             sql: """
                 SELECT article.id, article.title, article.publishedAt, article.isRead,
                        article.summary, article.contentText, article.url,
-                       article.llmStatus, article.isStarred,
+                       article.llmStatus, article.isStarred, article.isAdvertising,
                        COALESCE(NULLIF(feed.customTitle, ''), feed.title) AS feedTitle
                 FROM article_ft
                 JOIN article ON article.id = article_ft.rowid\(scope.joins)
@@ -185,7 +187,8 @@ final class ArticleListModel {
                 snippet: makeSnippet(summary ?? contentText),
                 url: row["url"],
                 llmFailed: row["llmStatus"] == LLMStatus.failed.rawValue,
-                isStarred: row["isStarred"]
+                isStarred: row["isStarred"],
+                isAdvertising: row["isAdvertising"]
             )
         }
     }

@@ -363,15 +363,22 @@ struct Repository: Sendable {
     /// Writes summary + bilingual tags in one transaction and marks the article
     /// `done`. Tags are deduped by the German label (`tag.name`, UNIQUE NOCASE);
     /// a missing English label on an existing tag is backfilled.
-    func applyLLMResult(articleId: Int64, summary: String, tags: [GeneratedTag]) async throws {
+    /// Advertorials arrive with `summary: nil` and are optionally marked read;
+    /// an already read article is never flipped back to unread.
+    func applyLLMResult(
+        articleId: Int64, summary: String?, tags: [GeneratedTag],
+        isAdvertising: Bool = false, markRead: Bool = false
+    ) async throws {
         try await pool.write { db in
             try db.execute(
                 sql: """
                     UPDATE article
-                    SET summary = ?, llmStatus = 'done', llmError = NULL, llmProcessedAt = ?
+                    SET summary = ?, isAdvertising = ?,
+                        isRead = CASE WHEN ? THEN 1 ELSE isRead END,
+                        llmStatus = 'done', llmError = NULL, llmProcessedAt = ?
                     WHERE id = ?
                     """,
-                arguments: [summary, Date(), articleId]
+                arguments: [summary, isAdvertising, markRead, Date(), articleId]
             )
             for generated in tags.prefix(5) {
                 var tag: Tag
@@ -435,7 +442,7 @@ struct Repository: Sendable {
                         SELECT article.id, article.title, article.summary,
                                article.contentText, article.createdAt
                         FROM article JOIN feed ON feed.id = article.feedId
-                        WHERE \(bucket.condition)
+                        WHERE \(bucket.condition) AND article.isAdvertising = 0
                         ORDER BY COALESCE(article.publishedAt, article.createdAt) DESC
                         LIMIT \(perCategoryLimit)
                         """,
@@ -501,7 +508,12 @@ struct Repository: Sendable {
             guard let record = try DigestRecord.fetchOne(db) else { return true }
             return try Bool.fetchOne(
                 db,
-                sql: "SELECT EXISTS(SELECT 1 FROM article WHERE createdAt > ?)",
+                // Advertorials never enter the digest, so their arrival must
+                // not trigger a regeneration that adds nothing.
+                sql: """
+                    SELECT EXISTS(
+                        SELECT 1 FROM article WHERE createdAt > ? AND isAdvertising = 0)
+                    """,
                 arguments: [record.generatedAt]
             ) ?? true
         }

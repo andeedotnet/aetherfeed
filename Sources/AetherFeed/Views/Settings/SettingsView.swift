@@ -197,6 +197,15 @@ private struct AISettingsView: View {
                     }
                 }
             }
+
+            // Provider-independent: every backend classifies advertorials.
+            Section(l10n[.settingsSectionAdvertising]) {
+                Toggle(
+                    l10n[.settingsMarkAdvertisingRead], isOn: $settings.markAdvertisingRead)
+                Text(l10n[.settingsMarkAdvertisingReadHint])
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
         .formStyle(.grouped)
         .task(id: settings.llmProvider) {

@@ -80,6 +80,13 @@ extension L10nKey {
             "Apple Intelligence elabora localmente su questo Mac. A batteria la coda e il "
             + "briefing restano fermi e riprendono automaticamente quando colleghi "
             + "l'alimentatore.",
+        .settingsSectionAdvertising: "Pubblicità",
+        .settingsMarkAdvertisingRead: "Segna automaticamente la pubblicità come letta",
+        .settingsMarkAdvertisingReadHint:
+            "La pubblicità rilevata viene subito segnata come letta e sparisce dal filtro "
+            + "dei non letti. Resta raggiungibile tramite il tag \"Advertising\" nella "
+            + "barra laterale.",
+        .advertisingDetected: "Rilevato come pubblicità – nessun riassunto generato",
 
         .sidebarHome: "Inizio",
         .digestTitle: "Novità",

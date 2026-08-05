@@ -107,10 +107,19 @@ struct ArticleAnalysis: Decodable, Sendable {
 
     var summary: String
     var tags: [Tag]
+    /// Optional on purpose: `OpenAIClient` only prompts the schema instead of
+    /// enforcing it, so a model omitting the field must not break decoding.
+    var isAdvertising: Bool?
+    /// The phrase the model quotes as proof of advertising. Verified against
+    /// the article text before the flag is trusted — small models otherwise
+    /// call any product teaser an ad.
+    var adMarker: String?
 
     static let schema: JSONValue = [
         "type": "object",
         "properties": [
+            "adMarker": ["type": "string"],
+            "isAdvertising": ["type": "boolean"],
             "summary": ["type": "string"],
             "tags": [
                 "type": "array",
@@ -125,7 +134,10 @@ struct ArticleAnalysis: Decodable, Sendable {
                 ],
             ],
         ],
-        "required": ["summary", "tags"],
+        // Order matters: `JSONSchemaTranslator` derives the generation order
+        // from `required`, so the model commits to the classification before
+        // writing the summary.
+        "required": ["adMarker", "isAdvertising", "summary", "tags"],
     ]
 }
 

@@ -274,6 +274,16 @@ struct ArticleDetailView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+            } else if article.isAdvertising {
+                // Done, but deliberately without a summary — otherwise this
+                // would spin forever.
+                HStack(spacing: 6) {
+                    Image(systemName: "megaphone")
+                        .foregroundStyle(.secondary)
+                    Text(l10n[.advertisingDetected])
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
             } else if batteryGateActive {
                 // Still pending, but the queue is idle — say so instead of
                 // spinning forever.

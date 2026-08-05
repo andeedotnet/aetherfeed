@@ -79,6 +79,12 @@ extension L10nKey {
         .settingsPauseOnBatteryHint:
             "Apple Intelligence runs locally on this Mac. On battery the queue and the "
             + "briefing stay idle and resume automatically once power is connected.",
+        .settingsSectionAdvertising: "Advertising",
+        .settingsMarkAdvertisingRead: "Mark advertising as read automatically",
+        .settingsMarkAdvertisingReadHint:
+            "Detected advertising is marked read right away and drops out of the unread "
+            + "filter. It stays reachable through the \"Advertising\" tag in the sidebar.",
+        .advertisingDetected: "Detected as advertising – no summary generated",
 
         .sidebarHome: "Home",
         .digestTitle: "What's new",

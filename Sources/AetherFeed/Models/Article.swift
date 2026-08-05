@@ -21,6 +21,9 @@ struct Article: Codable, Identifiable, Hashable, Sendable {
     var isRead: Bool = false
     var isStarred: Bool = false
     var summary: String?
+    /// Classified as an advertorial by the LLM — such articles keep no
+    /// summary and stay out of the digest.
+    var isAdvertising: Bool = false
     var llmStatus: LLMStatus = .pending
     var llmAttempts: Int = 0
     var llmError: String?

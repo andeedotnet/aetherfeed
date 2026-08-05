@@ -22,6 +22,7 @@ import Testing
         let article = try encodedSchema(ArticleAnalysis.schema)
         #expect(article.contains("summary"))
         #expect(article.contains("tags"))
+        #expect(article.contains("isAdvertising"))
         let category = try encodedSchema(CategorySuggestion.schema)
         #expect(category.contains("isExisting"))
         let topics = try encodedSchema(CategoryTopicsResult.schema)

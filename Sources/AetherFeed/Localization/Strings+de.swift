@@ -80,6 +80,13 @@ extension L10nKey {
             "Apple Intelligence rechnet lokal auf diesem Mac. Ohne Netzstrom ruhen "
             + "Warteschlange und Briefing und laufen automatisch weiter, sobald das "
             + "Netzteil angeschlossen ist.",
+        .settingsSectionAdvertising: "Werbung",
+        .settingsMarkAdvertisingRead: "Werbeartikel automatisch als gelesen markieren",
+        .settingsMarkAdvertisingReadHint:
+            "Erkannte Werbung wird sofort als gelesen markiert und verschwindet aus dem "
+            + "Ungelesen-Filter. Sie bleibt über den Tag „Werbung“ in der Seitenleiste "
+            + "erreichbar.",
+        .advertisingDetected: "Als Werbung erkannt – keine Zusammenfassung erstellt",
 
         .sidebarHome: "Startseite",
         .digestTitle: "Das ist neu",

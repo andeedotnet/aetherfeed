@@ -80,6 +80,13 @@ extension L10nKey {
             "Apple Intelligence s'exécute localement sur ce Mac. Sur batterie, la file "
             + "d'attente et le briefing restent en pause et reprennent automatiquement une "
             + "fois l'appareil branché.",
+        .settingsSectionAdvertising: "Publicité",
+        .settingsMarkAdvertisingRead: "Marquer automatiquement la publicité comme lue",
+        .settingsMarkAdvertisingReadHint:
+            "La publicité détectée est marquée comme lue immédiatement et disparaît du "
+            + "filtre des non lus. Elle reste accessible via le tag \"Advertising\" dans "
+            + "la barre latérale.",
+        .advertisingDetected: "Détecté comme publicité – aucun résumé généré",
 
         .sidebarHome: "Accueil",
         .digestTitle: "Quoi de neuf",

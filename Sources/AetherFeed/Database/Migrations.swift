@@ -115,6 +115,14 @@ enum Migrations {
             }
         }
 
+        // Advertorials detected by the LLM: no summary, excluded from the
+        // digest, optionally auto-marked read.
+        migrator.registerMigration("v2") { db in
+            try db.alter(table: "article") { t in
+                t.add(column: "isAdvertising", .boolean).notNull().defaults(to: false)
+            }
+        }
+
         return migrator
     }
 }

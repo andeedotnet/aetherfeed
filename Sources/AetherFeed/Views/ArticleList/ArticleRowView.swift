@@ -28,7 +28,9 @@ struct ArticleRowView: View {
                     .lineLimit(2)
             }
             if !row.tags.isEmpty {
-                TagChipRow(tags: row.tags.map { $0.display(l10n.language) })
+                TagChipRow(
+                    tags: row.tags.map { $0.display(l10n.language) },
+                    accent: row.isAdvertising ? .secondary : .accentColor)
             }
             HStack {
                 Text(row.feedTitle)

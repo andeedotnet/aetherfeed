@@ -81,6 +81,10 @@ enum L10nKey: String, CaseIterable {
     case openaiAPIKey
     case settingsPauseOnBattery
     case settingsPauseOnBatteryHint
+    case settingsSectionAdvertising
+    case settingsMarkAdvertisingRead
+    case settingsMarkAdvertisingReadHint
+    case advertisingDetected
 
     case sidebarHome
     case digestTitle
