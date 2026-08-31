@@ -25,23 +25,30 @@ final class ArticleListModel {
     private(set) var rows: [ArticleListRow] = []
     private(set) var currentSelection: SidebarSelection?
     private var currentSearch = ""
+    private var currentUnreadOnly = false
 
     private var observation: Task<Void, Never>?
 
     private static let log = Logger(
         subsystem: Bundle.main.bundleIdentifier ?? "AetherFeed", category: "search")
 
-    func observe(_ selection: SidebarSelection, search: String = "") {
-        guard selection != currentSelection || search != currentSearch else { return }
+    func observe(
+        _ selection: SidebarSelection, search: String = "", unreadOnly: Bool = false
+    ) {
+        guard selection != currentSelection || search != currentSearch
+            || unreadOnly != currentUnreadOnly
+        else { return }
         currentSelection = selection
         currentSearch = search
+        currentUnreadOnly = unreadOnly
         observation?.cancel()
         rows = []
 
         let valueObservation = ValueObservation.tracking { db in
             search.isEmpty
-                ? try Self.fetchRows(db, selection: selection)
-                : try Self.searchRows(db, query: search, selection: selection)
+                ? try Self.fetchRows(db, selection: selection, unreadOnly: unreadOnly)
+                : try Self.searchRows(
+                    db, query: search, selection: selection, unreadOnly: unreadOnly)
         }
         observation = Task { [weak self] in
             do {
@@ -64,40 +71,57 @@ final class ArticleListModel {
     /// tag stays scoped to it.
     private struct Scope {
         var joins = " JOIN feed ON feed.id = article.feedId"
-        /// Without the `WHERE` keyword so callers can combine it.
-        var predicate: String?
-        var values: [(any DatabaseValueConvertible)?] = []
+        /// ANDed together; each entry omits the `WHERE` keyword.
+        private(set) var predicates: [String] = []
+        private(set) var values: [(any DatabaseValueConvertible)?] = []
+
+        /// Predicate and bindings have to be appended together — `searchRows`
+        /// puts the FTS match in front, so positional order is load-bearing.
+        mutating func add(
+            _ predicate: String, _ newValues: [(any DatabaseValueConvertible)?] = []
+        ) {
+            predicates.append(predicate)
+            values.append(contentsOf: newValues)
+        }
+
+        var whereClause: String {
+            predicates.isEmpty ? "" : " WHERE " + predicates.joined(separator: " AND ")
+        }
+
+        var andClause: String { predicates.map { " AND \($0)" }.joined() }
     }
 
-    nonisolated private static func scope(for selection: SidebarSelection) -> Scope {
+    nonisolated private static func scope(
+        for selection: SidebarSelection, unreadOnly: Bool
+    ) -> Scope {
         var scope = Scope()
         switch selection {
-        case .home, .all:
+        case .home, .all, .unread:
+            // `.unread` is covered by the shared condition below, so that the
+            // sidebar entry and the list filter behave identically.
             break
-        case .unread:
-            scope.predicate = "article.isRead = 0"
         case .starred:
-            scope.predicate = "article.isStarred = 1"
+            scope.add("article.isStarred = 1")
         case .feed(let id):
-            scope.predicate = "article.feedId = ?"
-            scope.values = [id]
+            scope.add("article.feedId = ?", [id])
         case .category(let id):
-            scope.predicate = "feed.categoryId = ?"
-            scope.values = [id]
+            scope.add("feed.categoryId = ?", [id])
         case .tag(let id):
             scope.joins += " JOIN articleTag ON articleTag.articleId = article.id"
-            scope.predicate = "articleTag.tagId = ?"
-            scope.values = [id]
+            scope.add("articleTag.tagId = ?", [id])
+        }
+        if unreadOnly || selection == .unread {
+            scope.add("article.isRead = 0")
         }
         return scope
     }
 
     nonisolated static func fetchRows(
-        _ db: Database, selection: SidebarSelection
+        _ db: Database, selection: SidebarSelection, unreadOnly: Bool = false
     ) throws -> [ArticleListRow] {
-        let scope = Self.scope(for: selection)
+        let scope = Self.scope(for: selection, unreadOnly: unreadOnly)
         let joins = scope.joins
-        let condition = scope.predicate.map { " WHERE \($0)" } ?? ""
+        let condition = scope.whereClause
         let arguments = StatementArguments(scope.values)
 
         let sql = """
@@ -148,7 +172,7 @@ final class ArticleListModel {
     /// match), restricted to the current sidebar selection — the search
     /// field sits above that list, so it must not return other feeds' hits.
     nonisolated static func searchRows(
-        _ db: Database, query: String, selection: SidebarSelection
+        _ db: Database, query: String, selection: SidebarSelection, unreadOnly: Bool = false
     ) throws -> [ArticleListRow] {
         let match = query
             .split(whereSeparator: \.isWhitespace)
@@ -156,9 +180,9 @@ final class ArticleListModel {
             .joined(separator: " ")
         guard !match.isEmpty else { return [] }
 
-        let scope = Self.scope(for: selection)
+        let scope = Self.scope(for: selection, unreadOnly: unreadOnly)
         // `scope.joins` already contains the feed join the search needs.
-        let condition = scope.predicate.map { " AND \($0)" } ?? ""
+        let condition = scope.andClause
         let arguments = StatementArguments([match] + scope.values)
 
         return try Row.fetchAll(

@@ -75,12 +75,9 @@ struct ContentView: View {
             }
         }
         .frame(minWidth: 900, minHeight: 500)
-        .onChange(of: store.selection, initial: true) { _, selection in
-            listModel.observe(selection, search: searchText)
-        }
-        .onChange(of: searchText) { _, search in
-            listModel.observe(store.selection, search: search)
-        }
+        .onChange(of: store.selection, initial: true) { _, _ in observeList() }
+        .onChange(of: searchText) { _, _ in observeList() }
+        .onChange(of: settings.showUnreadOnly) { _, _ in observeList() }
         .onChange(of: store.selectedArticleId) { _, articleId in
             // A search result picked on the home page: jump to the list view,
             // which has a detail column to actually show the article.
@@ -116,6 +113,11 @@ struct ContentView: View {
             contentType: .xml,
             defaultFilename: "AetherFeed.opml"
         ) { _ in }
+    }
+
+    private func observeList() {
+        listModel.observe(
+            store.selection, search: searchText, unreadOnly: settings.showUnreadOnly)
     }
 
     private var sidebarColumn: some View {

@@ -83,4 +83,62 @@ import Testing
         #expect(rows.count == 1)
         #expect(rows.first?.feedTitle == "Wirtschaft")
     }
+
+    /// The list filter has to work inside every sidebar selection, not only
+    /// as the separate "Unread" entry.
+    @Test func unreadFilterAppliesToEverySelection() async throws {
+        let (repository, pool) = try makeRepository()
+        try await seed(repository)
+
+        let readId = try await pool.read { db in
+            try Int64.fetchOne(
+                db, sql: "SELECT id FROM article WHERE title = 'Technik: Quartalszahlen'")
+        }
+        try await repository.markArticle(id: try #require(readId), read: true)
+
+        let categoryId = try await pool.read { db in
+            try Int64.fetchOne(db, sql: "SELECT id FROM category WHERE name = 'Technik'")
+        }
+        let (all, unread, scoped) = try await pool.read { db in
+            (
+                try ArticleListModel.fetchRows(db, selection: .all),
+                try ArticleListModel.fetchRows(db, selection: .all, unreadOnly: true),
+                try ArticleListModel.fetchRows(
+                    db, selection: .category(try #require(categoryId)), unreadOnly: true)
+            )
+        }
+
+        #expect(all.count == 2)
+        #expect(unread.map(\.title) == ["Wirtschaft: Quartalszahlen"])
+        #expect(scoped.isEmpty)
+    }
+
+    /// The FTS match is bound before the scope values, so combining both must
+    /// not shift the placeholders apart.
+    @Test func unreadFilterComposesWithSearch() async throws {
+        let (repository, pool) = try makeRepository()
+        try await seed(repository)
+
+        let readId = try await pool.read { db in
+            try Int64.fetchOne(
+                db, sql: "SELECT id FROM article WHERE title = 'Technik: Quartalszahlen'")
+        }
+        try await repository.markArticle(id: try #require(readId), read: true)
+
+        let categoryId = try await pool.read { db in
+            try Int64.fetchOne(db, sql: "SELECT id FROM category WHERE name = 'Wirtschaft'")
+        }
+        let (unread, scoped) = try await pool.read { db in
+            (
+                try ArticleListModel.searchRows(
+                    db, query: "Quartalszahlen", selection: .all, unreadOnly: true),
+                try ArticleListModel.searchRows(
+                    db, query: "Quartalszahlen",
+                    selection: .category(try #require(categoryId)), unreadOnly: true)
+            )
+        }
+
+        #expect(unread.map(\.title) == ["Wirtschaft: Quartalszahlen"])
+        #expect(scoped.map(\.title) == ["Wirtschaft: Quartalszahlen"])
+    }
 }

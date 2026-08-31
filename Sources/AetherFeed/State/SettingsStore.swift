@@ -145,6 +145,11 @@ final class SettingsStore {
     var markAdvertisingRead: Bool {
         didSet { Self.defaults.set(markAdvertisingRead, forKey: "markAdvertisingRead") }
     }
+    /// Article list filter: show unread articles only. Applies to every
+    /// sidebar selection and survives launches.
+    var showUnreadOnly: Bool {
+        didSet { Self.defaults.set(showUnreadOnly, forKey: "showUnreadOnly") }
+    }
     /// Detail view preference: feed text instead of the article's web page.
     var showFeedTextInDetail: Bool {
         didSet { Self.defaults.set(showFeedTextInDetail, forKey: "showFeedTextInDetail") }
@@ -181,6 +186,7 @@ final class SettingsStore {
         checkUpdatesAtLaunch = defaults.object(forKey: "checkUpdatesAtLaunch") as? Bool ?? true
         pauseLLMOnBattery = AIPowerGate.pauseOnBatteryEnabled
         markAdvertisingRead = defaults.object(forKey: "markAdvertisingRead") as? Bool ?? true
+        showUnreadOnly = defaults.bool(forKey: "showUnreadOnly")
         showFeedTextInDetail = defaults.bool(forKey: "showFeedTextInDetail")
         adBlockEnabled = defaults.bool(forKey: "adBlockEnabled")
         blocklistURLs = defaults.stringArray(forKey: "blocklistURLs") ?? []

@@ -146,6 +146,12 @@ enum L10nKey: String, CaseIterable {
 
     case digestLatestArticles
 
+    case filterAll
+    case filterUnread
+    case filterArticleCount
+    case filterArticleCountOne
+    case filterNoUnread
+
     case digestReadAloud
     case digestStopReading
 
