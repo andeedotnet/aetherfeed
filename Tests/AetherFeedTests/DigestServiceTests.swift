@@ -17,10 +17,14 @@ private final class MockLLMClient: LLMClient, @unchecked Sendable {
     /// The first N category calls answer with structure dumped into the
     /// string slots (the on-device failure mode) instead of clean topics.
     private var malformedCallsLeft: Int
+    /// 1-based index of the category call that aborts the whole run with a
+    /// pipeline-pausing error; 0 = never.
+    private let failingCall: Int
 
-    init(concurrent: Bool, malformedCalls: Int = 0) {
+    init(concurrent: Bool, malformedCalls: Int = 0, failingCall: Int = 0) {
         self.concurrent = concurrent
         self.malformedCallsLeft = malformedCalls
+        self.failingCall = failingCall
     }
 
     var supportsConcurrentRequests: Bool { concurrent }
@@ -43,12 +47,13 @@ private final class MockLLMClient: LLMClient, @unchecked Sendable {
 
         let json: String
         if system.contains("Group them") {
-            let malformed = lock.withLock {
+            let (malformed, callIndex) = lock.withLock {
                 _topicCalls += 1
-                guard malformedCallsLeft > 0 else { return false }
+                guard malformedCallsLeft > 0 else { return (false, _topicCalls) }
                 malformedCallsLeft -= 1
-                return true
+                return (true, _topicCalls)
             }
+            if callIndex == failingCall { throw LLMError.notConfigured }
             let id = Self.firstArticleId(in: user)
             json =
                 malformed
@@ -170,6 +175,39 @@ private final class MockLLMClient: LLMClient, @unchecked Sendable {
         let topic = try #require(payload?.sections.first?.topics.first)
         #expect(topic.headline == "H")
         #expect(topic.summary == "S")
+    }
+
+    /// A generation that dies halfway must leave its finished sections
+    /// behind *and* stay stale — otherwise the partial digest would look
+    /// fresh and would never be retried.
+    @Test func abortedGenerationKeepsFinishedSectionsAndStaysStale() async throws {
+        let (repository, pool) = try makeRepository()
+        try await seedCategories(["Alpha", "Beta"], repository: repository)
+        // Serial backend: the second category call is reached only after the
+        // first one has been stored as a snapshot.
+        let client = MockLLMClient(concurrent: false, failingCall: 2)
+        await DigestService(repository: repository, clientProvider: { client }).generate()
+
+        let payload = try await repository.loadDigestPayload()
+        #expect(payload?.sections.map(\.category) == ["Alpha"])
+        #expect(try await repository.digestIsStale())
+        let isPartial = try await pool.read { db in
+            try Bool.fetchOne(db, sql: "SELECT isPartial FROM digest WHERE id = 1")
+        }
+        #expect(isPartial == true)
+    }
+
+    @Test func completedDigestIsNotPartialAndNotStale() async throws {
+        let (repository, pool) = try makeRepository()
+        try await seedCategories(["Alpha"], repository: repository)
+        let client = MockLLMClient(concurrent: true)
+        await DigestService(repository: repository, clientProvider: { client }).generate()
+
+        #expect(try await repository.digestIsStale() == false)
+        let isPartial = try await pool.read { db in
+            try Bool.fetchOne(db, sql: "SELECT isPartial FROM digest WHERE id = 1")
+        }
+        #expect(isPartial == false)
     }
 
     @Test func overviewIsBuiltFromTopicsInCategoryOrder() async throws {

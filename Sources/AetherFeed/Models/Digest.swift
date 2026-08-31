@@ -7,6 +7,9 @@ struct DigestRecord: Codable, Sendable {
     var generatedAt: Date
     var contentJSON: String
     var articleCount: Int
+    /// Intermediate state: sections are written as they finish, so the home
+    /// page can fill in progressively. Such a record never counts as fresh.
+    var isPartial = false
 }
 
 extension DigestRecord: FetchableRecord, PersistableRecord {

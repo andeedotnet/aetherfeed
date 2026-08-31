@@ -88,11 +88,12 @@ actor DigestService {
             // Previous sections by category name: the reuse pool for
             // incremental regeneration, and the fallback when a guardrail
             // skips a category (old section beats no section).
+            let previousPayload = try? await repository.loadDigestPayload()
             let previousSections: [String: DigestPayload.Section] =
-                ((try? await repository.loadDigestPayload())?.sections ?? [])
+                (previousPayload?.sections ?? [])
                 .reduce(into: [:]) { $0[$1.category] = $1 }
 
-            var reused: [Int: DigestPayload.Section] = [:]
+            var reusedBuffer: [Int: DigestPayload.Section] = [:]
             var jobs: [(index: Int, name: String, group: Repository.DigestCategoryGroup)] = []
             for (index, group) in groups.enumerated() {
                 if let previous = previousSections[names[index]],
@@ -100,11 +101,39 @@ actor DigestService {
                    let newestArrival = group.newestArrival,
                    newestArrival <= generatedAt
                 {
-                    reused[index] = previous
+                    reusedBuffer[index] = previous
                 } else {
                     jobs.append((index, names[index], group))
                 }
             }
+            // Immutable from here on: the snapshot helpers below capture it
+            // and run across suspension points.
+            let reused = reusedBuffer
+
+            // The finished sections in category order. Seeding from `reused`
+            // and the previous payload is what makes the intermediate saves
+            // safe: a snapshot can never drop a section that is on screen
+            // while its category is being regenerated.
+            func assemble(_ fresh: [Int: DigestPayload.Section]) -> [DigestPayload.Section] {
+                groups.indices.compactMap {
+                    fresh[$0] ?? reused[$0] ?? previousSections[names[$0]]
+                }
+            }
+            let articleCount = groups.reduce(0) { $0 + $1.articles.count }
+            // Written after every finished category so the home page can
+            // replace one category at a time instead of waiting for the whole
+            // run. The overview only exists at the end — until then the
+            // previous one carries over (empty on a fresh start).
+            let previousOverview = previousPayload?.overview ?? ""
+            func saveSnapshot(_ fresh: [Int: DigestPayload.Section]) async {
+                let sections = assemble(fresh)
+                guard !sections.isEmpty else { return }
+                // A failed snapshot must not abort an otherwise healthy run.
+                try? await repository.saveDigest(
+                    DigestPayload(overview: previousOverview, sections: sections),
+                    articleCount: articleCount, isPartial: true)
+            }
+            await saveSnapshot([:])
 
             // A single category failing on a content-specific error (e.g. an
             // Apple Intelligence guardrail refusing political news) should
@@ -125,7 +154,10 @@ actor DigestService {
                 }
                 for _ in 0..<window { startNext() }
                 while let result = try await taskGroup.next() {
-                    if let section = result.section { fresh[result.index] = section }
+                    if let section = result.section {
+                        fresh[result.index] = section
+                        await saveSnapshot(fresh)
+                    }
                     if let error = result.skipped {
                         skippedError = error
                         skippedCount += 1
@@ -141,14 +173,7 @@ actor DigestService {
                 }
             }
 
-            var sections: [DigestPayload.Section] = []
-            for index in groups.indices {
-                if let section = fresh[index] ?? reused[index] {
-                    sections.append(section)
-                } else if let previous = previousSections[names[index]] {
-                    sections.append(previous)
-                }
-            }
+            let sections = assemble(fresh)
             log.info(
                 "sections: \(reused.count) reused, \(fresh.count) regenerated, \(skippedCount) skipped"
             )
@@ -163,7 +188,6 @@ actor DigestService {
             let overview = await generateOverview(from: sections, client: client)
 
             let payload = DigestPayload(overview: overview, sections: sections)
-            let articleCount = groups.reduce(0) { $0 + $1.articles.count }
             try await repository.saveDigest(payload, articleCount: articleCount)
             await DigestStatusStore.shared.finish(message: nil)
             await NotificationService.postDigestReady()

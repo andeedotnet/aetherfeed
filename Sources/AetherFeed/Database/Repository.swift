@@ -505,7 +505,11 @@ struct Repository: Sendable {
     /// arrived after it was generated — i.e. it needs regenerating.
     func digestIsStale() async throws -> Bool {
         try await pool.read { db in
-            guard let record = try DigestRecord.fetchOne(db) else { return true }
+            // A partially written digest is not a finished one: without this
+            // an aborted generation would look fresh and never be retried.
+            guard let record = try DigestRecord.fetchOne(db), !record.isPartial else {
+                return true
+            }
             return try Bool.fetchOne(
                 db,
                 // Advertorials never enter the digest, so their arrival must
@@ -528,11 +532,17 @@ struct Repository: Sendable {
         }
     }
 
-    func saveDigest(_ payload: DigestPayload, articleCount: Int) async throws {
+    /// `isPartial` marks an intermediate state written while a generation is
+    /// still running — it keeps `digestIsStale()` true so the run is finished
+    /// or retried later.
+    func saveDigest(
+        _ payload: DigestPayload, articleCount: Int, isPartial: Bool = false
+    ) async throws {
         let json = String(decoding: try JSONEncoder().encode(payload), as: UTF8.self)
         try await pool.write { db in
             try DigestRecord(
-                id: 1, generatedAt: Date(), contentJSON: json, articleCount: articleCount
+                id: 1, generatedAt: Date(), contentJSON: json,
+                articleCount: articleCount, isPartial: isPartial
             ).insert(db, onConflict: .replace)
         }
     }

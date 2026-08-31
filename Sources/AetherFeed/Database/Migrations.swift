@@ -123,6 +123,15 @@ enum Migrations {
             }
         }
 
+        // Sections are persisted as they finish so the home page fills in
+        // progressively. A partial digest must stay "stale" — otherwise an
+        // aborted generation would look fresh and never be retried.
+        migrator.registerMigration("v3") { db in
+            try db.alter(table: "digest") { t in
+                t.add(column: "isPartial", .boolean).notNull().defaults(to: false)
+            }
+        }
+
         return migrator
     }
 }
