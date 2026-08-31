@@ -79,9 +79,14 @@ struct ContentView: View {
         .onChange(of: searchText) { _, _ in observeList() }
         .onChange(of: settings.showUnreadOnly) { _, _ in observeList() }
         .onChange(of: store.selectedArticleId) { _, articleId in
+            guard let articleId else { return }
+            // Catch-all for programmatic selections, which bypass the list's
+            // own binding — must stay after the selection observer above,
+            // which clears the pinned ids.
+            listModel.keepVisible(id: articleId)
             // A search result picked on the home page: jump to the list view,
             // which has a detail column to actually show the article.
-            guard store.selection == .home, let articleId else { return }
+            guard store.selection == .home else { return }
             store.openArticle(id: articleId)
         }
         .task {

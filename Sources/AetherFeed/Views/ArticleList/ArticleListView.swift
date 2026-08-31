@@ -8,7 +8,17 @@ struct ArticleListView: View {
 
     var body: some View {
         @Bindable var settings = settings
-        return List(selection: $store.selectedArticleId) {
+        // Interposed instead of binding straight to the store: pinning has to
+        // happen before `selectedArticleId` schedules the mark-read write,
+        // otherwise the row can blink out and back in. Covers keyboard
+        // navigation too.
+        let selection = Binding<Int64?>(
+            get: { store.selectedArticleId },
+            set: { id in
+                if let id { model.keepVisible(id: id) }
+                store.selectedArticleId = id
+            })
+        return List(selection: selection) {
             ForEach(model.rows) { row in
                 ArticleRowView(row: row)
                     .tag(row.id)
@@ -76,6 +86,8 @@ struct ArticleListView: View {
     @ViewBuilder
     private func rowMenu(for row: ArticleListRow) -> some View {
         Button {
+            // Same as a click: a row marked read from the menu keeps its place.
+            if !row.isRead { model.keepVisible(id: row.id) }
             Task { try? await Repository.shared.markArticle(id: row.id, read: !row.isRead) }
         } label: {
             Label(

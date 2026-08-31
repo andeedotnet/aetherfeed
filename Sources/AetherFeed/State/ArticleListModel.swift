@@ -17,6 +17,17 @@ struct ArticleListRow: Equatable, Sendable, Identifiable {
     var tags: [LocalizedTag] = []
 }
 
+/// Ids that stay in the list although they turned read. Written on the
+/// MainActor, read from the observation's database thread — hence the lock.
+private final class StickyReadIds: @unchecked Sendable {
+    private let lock = NSLock()
+    private var ids: Set<Int64> = []
+
+    var current: Set<Int64> { lock.withLock { ids } }
+    func insert(_ id: Int64) { lock.withLock { _ = ids.insert(id) } }
+    func removeAll() { lock.withLock { ids.removeAll() } }
+}
+
 /// Provides the article list for the current sidebar selection, live from the DB:
 /// new articles and LLM results appear without manual reloading.
 @MainActor
@@ -26,6 +37,10 @@ final class ArticleListModel {
     private(set) var currentSelection: SidebarSelection?
     private var currentSearch = ""
     private var currentUnreadOnly = false
+    /// Captured by the observation closure, not passed into it: the refetch
+    /// that the `isRead` write triggers has to see the id that was just
+    /// added, without re-arming the observation (which would blank the list).
+    private let sticky = StickyReadIds()
 
     private var observation: Task<Void, Never>?
 
@@ -41,14 +56,20 @@ final class ArticleListModel {
         currentSelection = selection
         currentSearch = search
         currentUnreadOnly = unreadOnly
+        // The query changed — nothing stays pinned across it.
+        sticky.removeAll()
         observation?.cancel()
         rows = []
 
+        let sticky = self.sticky
         let valueObservation = ValueObservation.tracking { db in
-            search.isEmpty
-                ? try Self.fetchRows(db, selection: selection, unreadOnly: unreadOnly)
+            let ids = sticky.current
+            return search.isEmpty
+                ? try Self.fetchRows(
+                    db, selection: selection, unreadOnly: unreadOnly, stickyReadIds: ids)
                 : try Self.searchRows(
-                    db, query: search, selection: selection, unreadOnly: unreadOnly)
+                    db, query: search, selection: selection, unreadOnly: unreadOnly,
+                    stickyReadIds: ids)
         }
         observation = Task { [weak self] in
             do {
@@ -64,6 +85,15 @@ final class ArticleListModel {
                 Self.log.error("article list observation failed: \(error)")
             }
         }
+    }
+
+    /// Pins an article that is about to be marked read, so it keeps its place
+    /// while it is being read. Without it the row would vanish from under the
+    /// cursor the moment it is clicked. Cleared on the next selection, search
+    /// or filter change.
+    func keepVisible(id: Int64) {
+        guard currentUnreadOnly || currentSelection == .unread else { return }
+        sticky.insert(id)
     }
 
     /// The joins/conditions a sidebar selection implies. Shared by the plain
@@ -92,7 +122,7 @@ final class ArticleListModel {
     }
 
     nonisolated private static func scope(
-        for selection: SidebarSelection, unreadOnly: Bool
+        for selection: SidebarSelection, unreadOnly: Bool, stickyReadIds: Set<Int64>
     ) -> Scope {
         var scope = Scope()
         switch selection {
@@ -111,15 +141,26 @@ final class ArticleListModel {
             scope.add("articleTag.tagId = ?", [id])
         }
         if unreadOnly || selection == .unread {
-            scope.add("article.isRead = 0")
+            // `sorted()` twice over: bindings must line up with their
+            // placeholders, and the stable SQL text spares the statement cache.
+            let pinned = stickyReadIds.sorted()
+            if pinned.isEmpty {
+                scope.add("article.isRead = 0")
+            } else {
+                scope.add(
+                    "(article.isRead = 0 OR article.id IN (\(databaseQuestionMarks(count: pinned.count))))",
+                    pinned)
+            }
         }
         return scope
     }
 
     nonisolated static func fetchRows(
-        _ db: Database, selection: SidebarSelection, unreadOnly: Bool = false
+        _ db: Database, selection: SidebarSelection, unreadOnly: Bool = false,
+        stickyReadIds: Set<Int64> = []
     ) throws -> [ArticleListRow] {
-        let scope = Self.scope(for: selection, unreadOnly: unreadOnly)
+        let scope = Self.scope(
+            for: selection, unreadOnly: unreadOnly, stickyReadIds: stickyReadIds)
         let joins = scope.joins
         let condition = scope.whereClause
         let arguments = StatementArguments(scope.values)
@@ -172,7 +213,8 @@ final class ArticleListModel {
     /// match), restricted to the current sidebar selection — the search
     /// field sits above that list, so it must not return other feeds' hits.
     nonisolated static func searchRows(
-        _ db: Database, query: String, selection: SidebarSelection, unreadOnly: Bool = false
+        _ db: Database, query: String, selection: SidebarSelection,
+        unreadOnly: Bool = false, stickyReadIds: Set<Int64> = []
     ) throws -> [ArticleListRow] {
         let match = query
             .split(whereSeparator: \.isWhitespace)
@@ -180,7 +222,8 @@ final class ArticleListModel {
             .joined(separator: " ")
         guard !match.isEmpty else { return [] }
 
-        let scope = Self.scope(for: selection, unreadOnly: unreadOnly)
+        let scope = Self.scope(
+            for: selection, unreadOnly: unreadOnly, stickyReadIds: stickyReadIds)
         // `scope.joins` already contains the feed join the search needs.
         let condition = scope.andClause
         let arguments = StatementArguments([match] + scope.values)

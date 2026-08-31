@@ -141,4 +141,37 @@ import Testing
         #expect(unread.map(\.title) == ["Wirtschaft: Quartalszahlen"])
         #expect(scoped.map(\.title) == ["Wirtschaft: Quartalszahlen"])
     }
+
+    /// A row that turns read while the filter is on has to keep its place —
+    /// otherwise it vanishes from under the cursor as it is clicked. Applies
+    /// to the sidebar's "Unread" entry as well.
+    @Test func pinnedArticlesStayVisibleAfterTurningRead() async throws {
+        let (repository, pool) = try makeRepository()
+        try await seed(repository)
+
+        let readId = try await pool.read { db in
+            try Int64.fetchOne(
+                db, sql: "SELECT id FROM article WHERE title = 'Technik: Quartalszahlen'")
+        }
+        let pinned = Set([try #require(readId)])
+        try await repository.markArticle(id: try #require(readId), read: true)
+
+        let (filtered, withPin, sidebarWithPin, searched) = try await pool.read { db in
+            (
+                try ArticleListModel.fetchRows(db, selection: .all, unreadOnly: true),
+                try ArticleListModel.fetchRows(
+                    db, selection: .all, unreadOnly: true, stickyReadIds: pinned),
+                try ArticleListModel.fetchRows(db, selection: .unread, stickyReadIds: pinned),
+                try ArticleListModel.searchRows(
+                    db, query: "Quartalszahlen", selection: .all, unreadOnly: true,
+                    stickyReadIds: pinned)
+            )
+        }
+
+        #expect(filtered.count == 1)
+        #expect(withPin.count == 2)
+        #expect(withPin.first { $0.id == readId }?.isRead == true)
+        #expect(sidebarWithPin.count == 2)
+        #expect(searched.count == 2)
+    }
 }
