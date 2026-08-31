@@ -117,6 +117,7 @@ extension L10nKey {
         .uiLanguageRestartHint:
             "I menu di sistema (Archivio, Modifica …) adottano la lingua al riavvio dell'app.",
         .digestOverviewTitle: "Le ultime 24 ore",
+        .digestLatestArticles: "Ultimi articoli",
         .digestOverviewEmpty: "Nessun nuovo articolo nelle ultime 24 ore.",
         .detailShowWebPage: "Mostra pagina web",
         .detailShowFeedText: "Mostra testo del feed",

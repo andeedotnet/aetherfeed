@@ -144,6 +144,8 @@ enum L10nKey: String, CaseIterable {
     case errorAppleUnavailable
     case errorAppleRejected
 
+    case digestLatestArticles
+
     case digestReadAloud
     case digestStopReading
 

@@ -114,6 +114,7 @@ extension L10nKey {
         .digestNoArticles: "Keine Artikel vorhanden — erst Feeds hinzufügen oder aktualisieren",
         .uiLanguageRestartHint: "Systemmenüs (Ablage, Bearbeiten …) übernehmen die Sprache nach einem Neustart der App.",
         .digestOverviewTitle: "Die letzten 24 Stunden",
+        .digestLatestArticles: "Neueste Artikel",
         .digestOverviewEmpty: "Keine neuen Artikel in den letzten 24 Stunden.",
         .detailShowWebPage: "Webseite anzeigen",
         .detailShowFeedText: "Feed-Text anzeigen",
