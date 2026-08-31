@@ -20,11 +20,18 @@ private final class MockLLMClient: LLMClient, @unchecked Sendable {
     /// 1-based index of the category call that aborts the whole run with a
     /// pipeline-pausing error; 0 = never.
     private let failingCall: Int
+    /// 1-based index of the category call that is refused the way a guardrail
+    /// refuses content — that category is skipped, the run continues.
+    private let rejectedCall: Int
 
-    init(concurrent: Bool, malformedCalls: Int = 0, failingCall: Int = 0) {
+    init(
+        concurrent: Bool, malformedCalls: Int = 0, failingCall: Int = 0,
+        rejectedCall: Int = 0
+    ) {
         self.concurrent = concurrent
         self.malformedCallsLeft = malformedCalls
         self.failingCall = failingCall
+        self.rejectedCall = rejectedCall
     }
 
     var supportsConcurrentRequests: Bool { concurrent }
@@ -54,6 +61,7 @@ private final class MockLLMClient: LLMClient, @unchecked Sendable {
                 return (true, _topicCalls)
             }
             if callIndex == failingCall { throw LLMError.notConfigured }
+            if callIndex == rejectedCall { throw LLMError.contentRejected }
             let id = Self.firstArticleId(in: user)
             json =
                 malformed
@@ -73,6 +81,16 @@ private final class MockLLMClient: LLMClient, @unchecked Sendable {
               let id = Int64(user[user.index(after: open)..<close])
         else { return 0 }
         return id
+    }
+}
+
+/// Counts the "digest ready" notifications a run would post.
+private final class NotifyCounter: @unchecked Sendable {
+    private let lock = NSLock()
+    private var _count = 0
+    var count: Int { lock.withLock { _count } }
+    var handler: @Sendable () async -> Void {
+        { self.lock.withLock { self._count += 1 } }
     }
 }
 
@@ -100,6 +118,14 @@ private final class MockLLMClient: LLMClient, @unchecked Sendable {
                 url: "https://example.com/\(index)",
                 parsed: ParsedFeed(title: name, description: nil, siteURL: nil, items: items),
                 categoryId: nil, newCategoryName: name, etag: nil, lastModified: nil)
+        }
+    }
+
+    /// Seeded articles arrive as `pending`; the briefing only counts as
+    /// finished once the queue has run dry.
+    private func markArticlesProcessed(_ pool: DatabasePool) async throws {
+        try await pool.write { db in
+            try db.execute(sql: "UPDATE article SET llmStatus = 'done'")
         }
     }
 
@@ -208,6 +234,102 @@ private final class MockLLMClient: LLMClient, @unchecked Sendable {
             try Bool.fetchOne(db, sql: "SELECT isPartial FROM digest WHERE id = 1")
         }
         #expect(isPartial == false)
+    }
+
+    /// Everything processed and every category covered: exactly one
+    /// notification.
+    @Test func digestReadyIsPostedOnceWhenEverythingIsDone() async throws {
+        let (repository, pool) = try makeRepository()
+        try await seedCategories(["Alpha", "Beta"], repository: repository)
+        try await markArticlesProcessed(pool)
+
+        let counter = NotifyCounter()
+        await DigestService(
+            repository: repository, clientProvider: { MockLLMClient(concurrent: true) },
+            notifyReady: counter.handler
+        ).generate()
+
+        #expect(counter.count == 1)
+    }
+
+    /// The pipeline generates whenever the queue momentarily runs dry, so a
+    /// refresh that is still delivering articles must not announce a briefing.
+    @Test func digestReadyIsHeldBackWhileArticlesAreStillWaiting() async throws {
+        let (repository, _) = try makeRepository()
+        try await seedCategories(["Alpha", "Beta"], repository: repository)
+        // Seeded articles stay `pending` — the queue still holds work.
+
+        let counter = NotifyCounter()
+        await DigestService(
+            repository: repository, clientProvider: { MockLLMClient(concurrent: true) },
+            notifyReady: counter.handler
+        ).generate()
+
+        #expect(counter.count == 0)
+        // The digest itself was still written — only the notification waits.
+        let payload = try await repository.loadDigestPayload()
+        #expect(payload?.sections.count == 2)
+    }
+
+    @Test func digestReadyIsHeldBackWhenACategoryProducedNoSection() async throws {
+        let (repository, pool) = try makeRepository()
+        try await seedCategories(["Alpha", "Beta"], repository: repository)
+        try await markArticlesProcessed(pool)
+
+        let counter = NotifyCounter()
+        // Serial, so the second call is reliably Beta's.
+        await DigestService(
+            repository: repository,
+            clientProvider: { MockLLMClient(concurrent: false, rejectedCall: 2) },
+            notifyReady: counter.handler
+        ).generate()
+
+        let payload = try await repository.loadDigestPayload()
+        #expect(payload?.sections.map(\.category) == ["Alpha"])
+        #expect(counter.count == 0)
+    }
+
+    /// The realistic launch sequence: the queue empties, the briefing is built
+    /// while the refresh is still delivering, those articles are processed,
+    /// and only then is the briefing announced — exactly once. Articles that
+    /// arrive during a run carry a `createdAt` older than the digest's
+    /// `generatedAt`, so the next pass finds nothing stale and has to announce
+    /// from the stored state instead of regenerating.
+    @Test func announcementSurvivesArticlesArrivingDuringTheRun() async throws {
+        let (repository, pool) = try makeRepository()
+        try await seedCategories(["Alpha", "Beta"], repository: repository)
+        try await markArticlesProcessed(pool)
+
+        let counter = NotifyCounter()
+        let service = DigestService(
+            repository: repository, clientProvider: { MockLLMClient(concurrent: true) },
+            notifyReady: counter.handler)
+
+        // A late arrival, still queued when the generation ends.
+        let feedId = try await pool.read { db in
+            try Int64.fetchOne(db, sql: "SELECT id FROM feed LIMIT 1")
+        }
+        try await pool.write { db in
+            try db.execute(
+                sql: "INSERT INTO article (feedId, guid, title, llmStatus, createdAt)"
+                    + " VALUES (?, 'late', 'Spaet', 'pending', ?)",
+                arguments: [try #require(feedId), Date(timeIntervalSince1970: 1)])
+        }
+
+        await service.generateIfNeeded()
+        #expect(counter.count == 0)
+
+        // The pipeline works the queue off and asks again. The digest is not
+        // stale (the article predates its timestamp), so nothing regenerates —
+        // only the owed announcement can still fire.
+        try await markArticlesProcessed(pool)
+        #expect(try await repository.digestIsStale() == false)
+        await service.generateIfNeeded()
+        #expect(counter.count == 1)
+
+        // Every further pass stays quiet.
+        await service.generateIfNeeded()
+        #expect(counter.count == 1)
     }
 
     @Test func overviewIsBuiltFromTopicsInCategoryOrder() async throws {

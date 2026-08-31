@@ -31,7 +31,15 @@ actor DigestService {
 
     private let repository: Repository
     private let clientProvider: @Sendable () -> (any LLMClient)?
+    private let notifyReady: @Sendable () async -> Void
     private var generating = false
+    /// A finished generation still owes its "ready" notification. Kept until
+    /// the article queue has actually run dry: the pipeline regenerates
+    /// whenever the queue momentarily empties, so a refresh that is still
+    /// delivering would otherwise announce the briefing several times.
+    private var announcementDue = false
+    /// Whether that generation produced a section for every category.
+    private var announcementIsComplete = false
     /// Non-pausing errors are deliberately swallowed (a guardrail refusal
     /// must not kill the digest) — log them so failures stay diagnosable.
     private let log = Logger(
@@ -41,10 +49,14 @@ actor DigestService {
         repository: Repository = .shared,
         clientProvider: @escaping @Sendable () -> (any LLMClient)? = {
             LLMClientFactory.current()
+        },
+        notifyReady: @escaping @Sendable () async -> Void = {
+            await NotificationService.postDigestReady()
         }
     ) {
         self.repository = repository
         self.clientProvider = clientProvider
+        self.notifyReady = notifyReady
     }
 
     /// Called whenever the article pipeline drains its queue: regenerates
@@ -52,8 +64,15 @@ actor DigestService {
     /// arrived after the current one was built. Failed generations leave
     /// the digest stale, so the next drain retries automatically.
     func generateIfNeeded() async {
-        guard (try? await repository.digestIsStale()) ?? false else { return }
-        await generate()
+        if (try? await repository.digestIsStale()) ?? false {
+            await generate()
+            return
+        }
+        // Nothing to regenerate — but an earlier run may still owe its
+        // announcement. Articles that arrived *during* that run carry a
+        // `createdAt` older than the digest's `generatedAt`, so they never
+        // make it stale again; without this the notification would be lost.
+        await announceIfReady()
     }
 
     /// Regenerates the home page digest.
@@ -190,11 +209,25 @@ actor DigestService {
             let payload = DigestPayload(overview: overview, sections: sections)
             try await repository.saveDigest(payload, articleCount: articleCount)
             await DigestStatusStore.shared.finish(message: nil)
-            await NotificationService.postDigestReady()
+
+            announcementDue = true
+            announcementIsComplete = sections.count == groups.count
+            await announceIfReady()
         } catch {
             // The old digest stays in place; the error is shown on the home page.
             await DigestStatusStore.shared.finish(message: error.localizedDescription)
         }
+    }
+
+    /// Posts the "digest ready" notification once the briefing is genuinely
+    /// finished: every category covered and no article left waiting for the
+    /// LLM. A run that covered only part of the categories never announces —
+    /// the next complete one does.
+    private func announceIfReady() async {
+        guard announcementDue, announcementIsComplete else { return }
+        guard ((try? await repository.hasUnprocessedArticles()) ?? true) == false else { return }
+        announcementDue = false
+        await notifyReady()
     }
 
     private struct SectionResult: Sendable {

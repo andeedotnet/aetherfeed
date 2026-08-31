@@ -523,6 +523,21 @@ struct Repository: Sendable {
         }
     }
 
+    /// True while any article still awaits the LLM — queued or claimed.
+    /// Deliberately wider than `hasPendingArticles()`, which only drives the
+    /// pipeline's loop decision.
+    func hasUnprocessedArticles() async throws -> Bool {
+        try await pool.read { db in
+            try Bool.fetchOne(
+                db,
+                sql: """
+                    SELECT EXISTS(
+                        SELECT 1 FROM article WHERE llmStatus IN ('pending', 'processing'))
+                    """
+            ) ?? false
+        }
+    }
+
     /// Cheap check whether the pipeline still has work queued.
     func hasPendingArticles() async throws -> Bool {
         try await pool.read { db in
