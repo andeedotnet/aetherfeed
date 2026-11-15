@@ -135,6 +135,7 @@ enum L10nKey: String, CaseIterable {
 
     case providerApple
     case appleModelName
+    case appleModelNameVariant
     case appleStatus
     case settingsAppleTestSuccess
     case errorAppleNotSupported

@@ -168,7 +168,7 @@ private struct AISettingsView: View {
                 if settings.llmProvider == .appleIntelligence {
                     // Exactly one on-device model — nothing to pick.
                     LabeledContent(l10n[.ollamaModel]) {
-                        Text(l10n[.appleModelName])
+                        Text(appleModelDisplayName)
                             .foregroundStyle(.secondary)
                     }
                     // Only the on-device model spends this Mac's own energy.
@@ -235,6 +235,12 @@ private struct AISettingsView: View {
         case .unavailable(.modelNotReady): l10n[.errorAppleModelNotReady]
         case .unavailable: l10n[.errorAppleUnavailable]
         }
+    }
+
+    private var appleModelDisplayName: String {
+        guard #available(macOS 26.0, *) else { return l10n[.appleModelName] }
+        return AppleIntelligenceClient.displayName(
+            variant: AppleIntelligenceClient.variantName, localize: { l10n[$0] })
     }
 
     /// The model field of the currently selected provider.

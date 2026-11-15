@@ -147,6 +147,7 @@ extension L10nKey {
 
         .providerApple: "Apple Intelligence (sur l'appareil)",
         .appleModelName: "Modèle système (sur l'appareil)",
+        .appleModelNameVariant: "Modèle système %@ (sur l'appareil)",
         .appleStatus: "État",
         .settingsAppleTestSuccess: "✓ Apple Intelligence est disponible",
         .errorAppleNotSupported: "Ce Mac ne prend pas en charge Apple Intelligence",

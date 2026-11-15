@@ -143,4 +143,49 @@ import Testing
         #expect(!result.topics.isEmpty)
         #expect(result.topics.allSatisfy { !$0.articleIds.isEmpty })
     }
+
+    // MARK: - Model name
+
+    @Test @available(macOS 26.0, *) func displayNameNamesVariantWhenKnown() {
+        let localize: (L10nKey) -> String = { L10nKey.english[$0] ?? $0.rawValue }
+        #expect(
+            AppleIntelligenceClient.displayName(variant: nil, localize: localize)
+                == "System model (on-device)")
+        #expect(
+            AppleIntelligenceClient.displayName(variant: "AFM 3 Core", localize: localize)
+                == "System model AFM 3 Core (on-device)")
+    }
+
+    // MARK: - Context budget (live, skips itself when unavailable)
+
+    @Test @available(macOS 26.0, *) func fitPromptRespectsTokenBudget() async throws {
+        guard #available(macOS 26.4, *) else { return }
+        let model = SystemLanguageModel(
+            useCase: .general, guardrails: .permissiveContentTransformations)
+        guard model.isAvailable else { return }
+
+        let system = "Summarize the article in one sentence."
+        let schema = try JSONSchemaTranslator.generationSchema(from: ArticleAnalysis.schema)
+        let budget = try await AppleIntelligenceClient.promptBudget(
+            system: system, schema: schema, model: model)
+        #expect(budget > 0)
+
+        // Short prompts pass through untouched.
+        let short = "Title: Solarausbau\n\nArticle:\nDeutschland baut Photovoltaik aus."
+        let keptShort = await AppleIntelligenceClient.fitPrompt(
+            short, system: system, schema: schema, model: model)
+        #expect(keptShort == short)
+
+        // A server-sized prompt (~16k chars ≈ 5000 tokens of German text)
+        // gets cut to fit the on-device window.
+        let sentence = "Deutschland hat 2025 rund 16 Gigawatt Photovoltaik-Leistung zugebaut. "
+        let long = "Title: Solarausbau\n\nArticle:\n"
+            + String(repeating: sentence, count: 16000 / sentence.count + 1)
+        let fitted = await AppleIntelligenceClient.fitPrompt(
+            long, system: system, schema: schema, model: model)
+        let tokens = try await model.tokenCount(for: fitted)
+        #expect(fitted.count < long.count)
+        #expect(tokens <= budget)
+        #expect(fitted.hasPrefix("Title: Solarausbau"))
+    }
 }
