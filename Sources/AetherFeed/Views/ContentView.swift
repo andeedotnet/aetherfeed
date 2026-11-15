@@ -74,6 +74,7 @@ struct ContentView: View {
                 .toolbar { mainToolbar }
             }
         }
+        .softTopScrollEdges()
         .frame(minWidth: 900, minHeight: 500)
         .onChange(of: store.selection, initial: true) { _, _ in observeList() }
         .onChange(of: searchText) { _, _ in observeList() }
@@ -205,6 +206,21 @@ struct ContentView: View {
                 .disabled(UpdateChecker.shared.isUpdating)
                 .help(l10n[.updateAvailableHelp, version])
             }
+        }
+    }
+}
+
+extension View {
+    /// macOS 26+ draws a hard scroll edge (grey band plus divider) under the
+    /// toolbar of each column. That band starts a few points left of the
+    /// column edge, so it juts out against the sidebar. The soft style fades
+    /// content out under the toolbar instead and leaves no edge to misalign.
+    @ViewBuilder
+    fileprivate func softTopScrollEdges() -> some View {
+        if #available(macOS 26.0, *) {
+            scrollEdgeEffectStyle(.soft, for: .top)
+        } else {
+            self
         }
     }
 }

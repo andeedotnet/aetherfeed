@@ -45,7 +45,7 @@ struct ArticleListView: View {
                 }
             }
         }
-        .safeAreaInset(edge: .top, spacing: 0) {
+        .columnHeaderBar {
             filterBar(showUnreadOnly: $settings.showUnreadOnly)
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
@@ -56,31 +56,27 @@ struct ArticleListView: View {
     /// Sits directly above the list rather than in the window toolbar: the
     /// filter belongs to this column, not to the whole window.
     private func filterBar(showUnreadOnly: Binding<Bool>) -> some View {
-        VStack(spacing: 0) {
-            HStack {
-                Picker("", selection: showUnreadOnly) {
-                    Text(l10n[.filterAll]).tag(false)
-                    Text(l10n[.filterUnread]).tag(true)
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .fixedSize()
-                Spacer()
-                // Two keys instead of a plural rule: "1 articles" would be
-                // wrong in four of the five languages.
-                Text(
-                    l10n[
-                        model.rows.count == 1 ? .filterArticleCountOne : .filterArticleCount,
-                        model.rows.count])
-                    .font(.caption)
-                    .monospacedDigit()
-                    .foregroundStyle(.secondary)
+        HStack {
+            Picker("", selection: showUnreadOnly) {
+                Text(l10n[.filterAll]).tag(false)
+                Text(l10n[.filterUnread]).tag(true)
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            Divider()
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .fixedSize()
+            Spacer()
+            // Two keys instead of a plural rule: "1 articles" would be
+            // wrong in four of the five languages.
+            Text(
+                l10n[
+                    model.rows.count == 1 ? .filterArticleCountOne : .filterArticleCount,
+                    model.rows.count])
+                .font(.caption)
+                .monospacedDigit()
+                .foregroundStyle(.secondary)
         }
-        .background(.bar)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
     }
 
     @ViewBuilder
@@ -113,6 +109,30 @@ struct ArticleListView: View {
                 pasteboard.setString(url.absoluteString, forType: .string)
             } label: {
                 Label(l10n[.copyLink], systemImage: "link")
+            }
+        }
+    }
+}
+
+
+extension View {
+    /// Pins a bar below the column's toolbar. On macOS 26+ `safeAreaBar`
+    /// merges it into the toolbar's scroll edge effect, so title and bar read
+    /// as one header; an own material band would stop at the column edge
+    /// while the toolbar background extends under the floating sidebar,
+    /// leaving the two visibly offset. Older systems keep the classic
+    /// material band with a divider.
+    @ViewBuilder
+    fileprivate func columnHeaderBar(@ViewBuilder _ content: () -> some View) -> some View {
+        if #available(macOS 26.0, *) {
+            safeAreaBar(edge: .top, spacing: 0) { content() }
+        } else {
+            safeAreaInset(edge: .top, spacing: 0) {
+                VStack(spacing: 0) {
+                    content()
+                    Divider()
+                }
+                .background(.bar)
             }
         }
     }
