@@ -9,7 +9,14 @@ if ! swift --version >/dev/null 2>&1; then
 fi
 
 CONFIG="${1:-release}"
-swift build -c "$CONFIG"
+# The default SwiftPM build system (swiftbuild) stamps the deployment target
+# as the SDK version into LC_BUILD_VERSION (sdk 15.0). AppKit keys its
+# appearance on that stamp, so the app would run in the pre-macOS-26
+# compatibility look (no Liquid Glass) despite being built against a newer
+# SDK. Restate the platform version with the real SDK version.
+SDK_VERSION="$(xcrun --show-sdk-version)"
+swift build -c "$CONFIG" \
+  -Xlinker -platform_version -Xlinker macos -Xlinker 15.0 -Xlinker "$SDK_VERSION"
 
 APP="build/AetherFeed.app"
 rm -rf "$APP"
